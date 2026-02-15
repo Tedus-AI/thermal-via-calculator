@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>等效 K 值計算器 (Thermal Via K-Value)</title>
+    <!-- 引入 Tailwind CSS 進行快速排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 Markdown 解析器 (用於 AI 回覆的排版) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <style>
+        /* 自定義樣式補充 */
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6; /* 淺灰背景 */
+        }
+        
+        /* 數值輸入框樣式優化 */
+        input[type="number"], input[type="text"], select {
+            transition: all 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Canvas 畫布容器 */
+        #canvas-container {
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px; /* 網格背景 */
+        }
+
+        /* 懸浮單位換算工具 */
+        #unit-converter {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(4px);
+            border: 1px solid #d1d5db;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 8px;
+            padding: 10px;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            width: auto;
+            max-width: 300px;
+        }
+        #unit-converter input {
+            width: 70px;
+            padding: 2px 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        /* AI 回覆區樣式 */
+        .prose h3 { font-size: 1.1em; font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; color: #1e293b; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .prose p { margin-bottom: 0.8em; line-height: 1.6; }
+        .prose strong { color: #0f172a; font-weight: 600; }
+    </style>
+</head>
+<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-slate-800 text-white p-4 shadow-md shrink-0">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold"><i class="fa-solid fa-microchip mr-2"></i>等效 K 值計算器 <span class="text-xs font-normal text-gray-400 ml-2">v2.8</span></h1>
+            
+            <!-- [修改區域] 右側控制區：新增本機/雲端按鈕與登入狀態 -->
+            <div class="flex items-center gap-4">
+                <!-- 模式切換 -->
+                <div class="bg-slate-700 rounded p-1 flex text-xs">
+                    <button id="btn-mode-local" onclick="switchMode('local')" class="px-3 py-1 rounded bg-slate-500 text-white font-bold transition">本機</button>
+                    <button id="btn-mode-cloud" onclick="switchMode('cloud')" class="px-3 py-1 rounded hover:bg-slate-600 text-gray-400 transition">雲端</button>
+                </div>
+                
+                <!-- 登入/使用者狀態 -->
+                <div id="auth-container" class="hidden flex items-center gap-2">
+                    <span id="user-info" class="text-xs text-gray-300"></span>
+                    <button onclick="doLogout()" class="text-xs text-red-400 hover:text-red-300" title="登出">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+                <button id="btn-login" onclick="doLogin()" class="hidden text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded transition">
+                    <i class="fa-brands fa-google mr-1"></i> 登入
+                </button>
+
+                <!-- 日期顯示 -->
+                <div class="text-sm border-l border-slate-600 pl-4">
+                    <span id="current-date" class="opacity-80"></span>
+                </div>
+            </div>
+            <!-- [修改區域結束] -->
+
+        </div>
+    </header>
+
+    <!-- 主要內容區 (Grid Layout) -->
+    <div class="flex-1 container mx-auto p-4 overflow-hidden flex flex-col md:flex-row gap-4">
+        
+        <!-- 左側：輸入與控制面板 (可捲動) -->
+        <div class="w-full md:w-5/12 bg-white rounded-lg shadow-sm flex flex-col overflow-y-auto h-full scrollbar-thin">
+            
+            <!-- 1. 資料庫管理區 -->
+            <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-xs font-bold text-gray-500 uppercase">歷史紀錄 / 元件管理</label>
+                    <button onclick="deleteCurrentData()" class="text-red-500 hover:text-red-700 text-xs transition">
+                        <i class="fa-solid fa-trash-can mr-1"></i>刪除
+                    </button>
+                </div>
+                <div class="flex gap-2 mb-2">
+                    <select id="history-select" onchange="loadFromHistory()" class="flex-1 border rounded px-2 py-1 text-sm bg-white">
+                        <option value="">-- 選擇既有元件 --</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <div class="flex-1">
+                        <label class="block text-xs text-gray-500 mb-1">元件名稱 (Name)</label>
+                        <input type="text" id="comp-name" placeholder="例如: Power_IC_01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium">
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 space-y-6">
+                
+                <!-- 2. 焊盤設定 (Pad Configuration) -->
+                <div>
+                    <h3 class="text-sm font-bold text-slate-700 border-l-4 border-blue-500 pl-2 mb-3">焊盤幾何 (Pad Geometry)</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs text-gray-600 mb-1">焊盤形狀 (Shape)</label>
+                            <select id="pad-shape" onchange="togglePadInputs()" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+                                <option value="square">方形 (Square)</option>
+                                <option value="circular">圓形 (Circular)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 動態輸入區：方形顯示長寬，圓形顯示直徑 -->
+                        <div id="input-square-l" class="col-span-1">
+                            <label class="block text-xs text-gray-600 mb-1">長度 L (mm)</label>
+                            <input type="number" id="pad-length" value="5.00" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </div>
+                        <div id="input-square-w" class="col-span-1">
+                            <label class="block text-xs text-gray-600 mb-1">寬度 W (mm)</label>
+                            <input type="number" id="pad-width" value="5.00" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </div>
+                        <div id="input-circle-d" class="col-span-2 hidden">
+                            <label class="block text-xs text-gray-600 mb-1">直徑 D (mm)</label>
+                            <input type="number" id="pad-diameter" value="5.00" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </div>
+
+                        <div class="col-span-2 bg-blue-50 p-2 rounded border border-blue-100 mt-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-blue-600 font-medium">計算面積 (Area):</span>
+                                <span class="text-sm font-bold text-blue-800"><span id="display-area">25.000</span> mm²</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Via 配置 (Via Configuration) -->
+                <div>
+                    <h3 class="text-sm font-bold text-slate-700 border-l-4 border-green-500 pl-2 mb-3">Via 配置 (Layout)</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs text-gray-600 mb-1">排列方式 (Pattern)</label>
+                            <select id="via-pattern" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+                                <option value="matrix">矩陣排列 (Matrix Grid)</option>
+                                <option value="staggered">交錯排列 (Staggered/Hex)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Via 數量 (Count)</label>
+                            <input type="number" id="via-count" value="9" min="1" step="1" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </div>
+                        
+                        <!-- Layout Via Diameter (With Unit) -->
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Layout Via 直徑 (內徑)</label>
+                            <div class="flex gap-1">
+                                <input type="number" id="layout-dia" value="8.00" step="0.01" class="w-2/3 border border-gray-300 rounded px-2 py-1 text-sm">
+                                <select id="layout-dia-unit" class="w-1/3 border border-gray-300 rounded px-1 py-1 text-xs bg-gray-50">
+                                    <option value="mil" selected>mil</option>
+                                    <option value="mm">mm</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Pitch (With Unit) -->
+                        <div class="col-span-2 flex gap-2 items-end">
+                            <div class="flex-1">
+                                <label class="block text-xs text-gray-600 mb-1">中心間距 Pitch</label>
+                                <div class="flex gap-1">
+                                    <input type="number" id="via-pitch" value="16.00" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                                    <select id="via-pitch-unit" class="w-[60px] border border-gray-300 rounded px-1 py-1 text-xs bg-gray-50">
+                                        <option value="mil" selected>mil</option>
+                                        <option value="mm">mm</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="calculateAutoPitch()" class="bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 rounded px-3 py-1 text-xs h-[30px] transition font-medium whitespace-nowrap mb-[1px]">
+                                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>自動計算
+                            </button>
+                        </div>
+                        <p class="col-span-2 text-[10px] text-gray-400 italic text-right">*自動計算預設邊距 (Edge Clearance) 為 0.25mm</p>
+                    </div>
+                </div>
+
+                <!-- 4. 材料參數 (Material Params) -->
+                <div>
+                    <h3 class="text-sm font-bold text-slate-700 border-l-4 border-orange-500 pl-2 mb-3">材料與厚度 (Material)</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">PCB 總厚度 (mm)</label>
+                            <input type="number" id="pcb-thickness" value="1.60" step="0.05" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">鍍銅厚度 (Plating)</label>
+                            <select id="plating-thickness" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+                                <option value="0.0254">1 mil (0.0254 mm)</option>
+                                <option value="0.035">1 oz (0.035 mm)</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-xs text-gray-600 mb-1">塞孔材料 (Fill Material)</label>
+                            <select id="fill-material" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+                                <option value="0.026">空氣 (Air, K=0.026)</option>
+                                <option value="50">錫膏 (Solder Paste, K=50)</option>
+                                <option value="2">導熱膠 (Epoxy, K~2.0)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 儲存按鈕 -->
+                <button onclick="saveData()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded shadow transition flex items-center justify-center">
+                    <i class="fa-solid fa-floppy-disk mr-2"></i> 計算並儲存至資料庫
+                </button>
+
+                <div class="h-8"></div> <!-- Spacer -->
+            </div>
+        </div>
+
+        <!-- 右側：視覺化與結果顯示 (可捲動) -->
+        <div class="w-full md:w-7/12 flex flex-col gap-4 h-full overflow-y-auto scrollbar-thin pr-1">
+            
+            <!-- 1. Canvas 視覺化區 -->
+            <div class="bg-white p-4 rounded-lg shadow-sm flex flex-col items-center justify-center relative min-h-[300px] shrink-0" id="canvas-container">
+                <!-- 增加高度以容納側視圖 -->
+                <canvas id="viaCanvas" width="400" height="650" class="max-w-full max-h-full"></canvas>
+                
+                <!-- 警告訊息浮層 -->
+                <div id="warning-msg" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm font-bold shadow-md hidden flex items-center z-10">
+                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>
+                    <span>干涉警告：Via 焊盤重疊或超出邊界！</span>
+                </div>
+            </div>
+
+            <!-- 2. 計算結果區 -->
+            <div class="bg-white p-5 rounded-lg shadow-sm shrink-0">
+                <h2 class="text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider border-b pb-2">計算結果 (Results)</h2>
+                <div class="grid grid-cols-2 gap-6">
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">等效 K 值 (Effective K)</div>
+                        <div class="text-3xl font-bold text-slate-800"><span id="result-k">0.000</span> <span class="text-sm font-normal text-gray-500">W/mK</span></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500 mb-1">總熱阻 (Thermal Resistance)</div>
+                        <div class="text-xl font-bold text-gray-600"><span id="result-r">0.000</span> <span class="text-sm font-normal text-gray-500">K/W</span></div>
+                    </div>
+                    <div>
+                         <div class="text-xs text-gray-500 mb-1">銅面積佔比 (Copper Ratio)</div>
+                         <div class="text-lg font-semibold text-orange-600"><span id="result-ratio">0.000</span> %</div>
+                    </div>
+                     <div>
+                         <div class="text-xs text-gray-500 mb-1">單顆 Via 熱阻</div>
+                         <div class="text-lg font-semibold text-gray-600"><span id="result-single-r">0.000</span> K/W</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. ℹ️ 系統內建參數參考區 (Position Swapped: Moved UP) -->
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-xs text-gray-500 shrink-0 mb-4">
+                <h3 class="font-bold text-gray-600 mb-2 border-b border-gray-200 pb-1">
+                    <i class="fa-solid fa-circle-info mr-1"></i> 系統內建計算參數 (Calculation Constants)
+                </h3>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <div>
+                        <span class="font-semibold">K (Copper):</span> 385 W/mK
+                    </div>
+                    <div>
+                        <span class="font-semibold">K (FR4):</span> 0.3 W/mK
+                    </div>
+                    <div class="col-span-2">
+                        <span class="font-semibold">K (Fill Materials):</span> 
+                        Air (0.026), Solder (50), Epoxy (2.0) W/mK
+                    </div>
+                    <div>
+                        <span class="font-semibold">Edge Clearance:</span> 0.25 mm
+                    </div>
+                    <div>
+                        <span class="font-semibold">Unit (1 mil):</span> 0.0254 mm
+                    </div>
+                    <div>
+                        <span class="font-semibold">Unit (1 oz):</span> 0.035 mm
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. ✨ Gemini AI 智慧顧問區 (Position Swapped: Moved DOWN) -->
+            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-5 rounded-lg shadow-sm border border-indigo-100 shrink-0 mb-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-bold text-indigo-700 uppercase tracking-wider flex items-center">
+                        <i class="fa-solid fa-robot mr-2"></i>Gemini AI 智慧顧問
+                    </h2>
+                    <span class="text-[10px] bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded-full font-bold">BETA</span>
+                </div>
+                
+                <div class="flex gap-3 mb-4">
+                    <button onclick="askGemini('analysis')" class="flex-1 bg-white hover:bg-indigo-50 text-indigo-600 border border-indigo-200 font-semibold py-2 px-3 rounded text-sm transition shadow-sm flex items-center justify-center gap-2 group">
+                        <i class="fa-solid fa-stethoscope group-hover:scale-110 transition-transform"></i> 
+                        <span>AI 設計健檢與優化</span>
+                    </button>
+                    <button onclick="askGemini('report')" class="flex-1 bg-white hover:bg-purple-50 text-purple-600 border border-purple-200 font-semibold py-2 px-3 rounded text-sm transition shadow-sm flex items-center justify-center gap-2 group">
+                        <i class="fa-solid fa-file-pen group-hover:scale-110 transition-transform"></i> 
+                        <span>生成工程報告</span>
+                    </button>
+                </div>
+
+                <!-- AI 輸出顯示區 -->
+                <div id="ai-output-container" class="hidden">
+                    <div id="ai-loading" class="flex items-center justify-center p-4 text-gray-500 text-sm hidden">
+                        <i class="fa-solid fa-circle-notch fa-spin mr-2"></i> 正在分析數據，請稍候...
+                    </div>
+                    <div id="ai-response" class="prose prose-sm max-w-none bg-white p-4 rounded border border-gray-200 text-sm text-gray-700 shadow-inner max-h-60 overflow-y-auto">
+                        <!-- AI 回覆內容將顯示於此 -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 懸浮單位換算工具 (角落) -->
+    <div id="unit-converter">
+        <i class="fa-solid fa-ruler-combined text-gray-400"></i>
+        <input type="number" id="conv-mil" placeholder="mil" step="0.1">
+        <span class="text-xs text-gray-500">mil</span>
+        <i class="fa-solid fa-arrow-right-arrow-left text-xs text-gray-400"></i>
+        <input type="number" id="conv-mm" placeholder="mm" step="0.01">
+        <span class="text-xs text-gray-500">mm</span>
+    </div>
+
+    <!-- JS 邏輯 -->
+    <script type="module">
+        // --- [修改區域] Firebase SDK Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- 1. 全域變數與初始化 ---
+        const K_COPPER = 385;
+        const K_FR4 = 0.3;
+        const EDGE_CLEARANCE = 0.25; // 自動計算時的邊距 mm
+        const apiKey = ""; // 系統會自動填入 API Key
+
+        // --- [修改區域] Firebase Config 與 狀態變數 ---
+        // 請在此填入您的 Firebase 設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyDWhBpjY8iVCwOLj4zdudgrtTnLPpF-CAo",
+            authDomain: "thermal-tool-thermal-via-cala.firebaseapp.com",
+            projectId: "thermal-tool-thermal-via-cala",
+            storageBucket: "thermal-tool-thermal-via-cala.firebasestorage.app",
+            messagingSenderId: "441951997169",
+            appId: "1:441951997169:web:93286e298c5ddc3104ad50",
+            measurementId: "G-T9YW551BYM"
+        };
+        
+        // 限制允許的 Google 帳號 (請修改此處)
+        const ALLOWED_EMAIL = "tedus.chen@gmail.com"; 
+
+        let app, auth, db, currentUser;
+        let currentMode = 'local'; // 'local' or 'cloud'
+
+        // 初始化 Firebase (若有 config)
+        if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                
+                // Auth Listener
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        if (user.email !== ALLOWED_EMAIL) {
+                            alert(`此系統只限帳號 ${ALLOWED_EMAIL} 使用，您 (${user.email}) 無權限。`);
+                            signOut(auth);
+                            return;
+                        }
+                        currentUser = user;
+                        document.getElementById('user-info').innerText = user.email;
+                        document.getElementById('auth-container').classList.remove('hidden');
+                        document.getElementById('btn-login').classList.add('hidden');
+                        if (currentMode === 'cloud') updateHistorySelect();
+                    } else {
+                        currentUser = null;
+                        document.getElementById('auth-container').classList.add('hidden');
+                        if (currentMode === 'cloud') {
+                             document.getElementById('btn-login').classList.remove('hidden');
+                             // 清空列表
+                             const sel = document.getElementById('history-select');
+                             sel.innerHTML = '<option value="">-- 請先登入 --</option>';
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error("Firebase init failed:", e);
+            }
+        }
+        // --- [修改區域結束] ---
+
+        // DOM 元素快取
+        const els = {
+            name: document.getElementById('comp-name'),
+            shape: document.getElementById('pad-shape'),
+            len: document.getElementById('pad-length'),
+            wid: document.getElementById('pad-width'),
+            dia: document.getElementById('pad-diameter'),
+            displayArea: document.getElementById('display-area'),
+            pattern: document.getElementById('via-pattern'),
+            count: document.getElementById('via-count'),
+            
+            // Modified inputs
+            layoutDia: document.getElementById('layout-dia'),
+            layoutDiaUnit: document.getElementById('layout-dia-unit'),
+            pitch: document.getElementById('via-pitch'),
+            pitchUnit: document.getElementById('via-pitch-unit'),
+            
+            pcbThick: document.getElementById('pcb-thickness'),
+            plating: document.getElementById('plating-thickness'),
+            fill: document.getElementById('fill-material'),
+            
+            // 介面控制
+            containerL: document.getElementById('input-square-l'),
+            containerW: document.getElementById('input-square-w'),
+            containerD: document.getElementById('input-circle-d'),
+            warning: document.getElementById('warning-msg'),
+            
+            // 結果顯示
+            resK: document.getElementById('result-k'),
+            resR: document.getElementById('result-r'),
+            resRatio: document.getElementById('result-ratio'),
+            resSingleR: document.getElementById('result-single-r'),
+            
+            // 換算工具
+            convMil: document.getElementById('conv-mil'),
+            convMm: document.getElementById('conv-mm'),
+            
+            // Canvas
+            canvas: document.getElementById('viaCanvas'),
+            
+            // History
+            historySelect: document.getElementById('history-select'),
+
+            // AI
+            aiContainer: document.getElementById('ai-output-container'),
+            aiLoading: document.getElementById('ai-loading'),
+            aiResponse: document.getElementById('ai-response')
+        };
+
+        const ctx = els.canvas.getContext('2d');
+
+        // --- 2. 事件監聽 (Event Listeners) ---
+        // 綁定所有輸入框的 change 與 input 事件，以觸發即時計算
+        const inputs = [
+            els.shape, els.len, els.wid, els.dia, 
+            els.pattern, els.count, els.layoutDia, els.layoutDiaUnit,
+            els.pitch, els.pitchUnit,
+            els.pcbThick, els.plating, els.fill
+        ];
+        inputs.forEach(input => {
+            input.addEventListener('input', updateAll);
+            input.addEventListener('change', updateAll);
+        });
+
+        // 單位換算工具邏輯
+        els.convMil.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val)) els.convMm.value = (val * 0.0254).toFixed(3);
+        });
+        els.convMm.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val)) els.convMil.value = (val / 0.0254).toFixed(2);
+        });
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            document.getElementById('current-date').innerText = now.toLocaleDateString('zh-TW');
+            updateHistorySelect();
+            updateAll();
+        });
+
+        // --- 3. 核心邏輯功能 ---
+
+        // 切換方形/圓形輸入框
+        function togglePadInputs() {
+            const isSquare = els.shape.value === 'square';
+            if (isSquare) {
+                els.containerL.classList.remove('hidden');
+                els.containerW.classList.remove('hidden');
+                els.containerD.classList.add('hidden');
+            } else {
+                els.containerL.classList.add('hidden');
+                els.containerW.classList.add('hidden');
+                els.containerD.classList.remove('hidden');
+            }
+            updateAll(); // 重新計算
+        }
+
+        // 主更新函數
+        function updateAll() {
+            const data = getFormData();
+            
+            // 1. 計算面積
+            const padArea = calculatePadArea(data);
+            els.displayArea.innerText = padArea.toFixed(3);
+
+            // 2. 計算 K 值
+            const results = calculateKeff(data, padArea);
+            
+            // 3. 更新 UI 結果 (3位小數)
+            els.resK.innerText = results.keff.toFixed(3);
+            els.resR.innerText = results.rth.toFixed(3);
+            els.resRatio.innerText = (results.copperRatio * 100).toFixed(3);
+            els.resSingleR.innerText = results.singleViaR.toFixed(3);
+
+            // 4. 繪製 Canvas
+            drawVisualization(data);
+        }
+
+        // 取得表單資料 (含單位轉換)
+        function getFormData() {
+            // 處理 Layout Dia 單位
+            let rawDia = parseFloat(els.layoutDia.value) || 0;
+            if (els.layoutDiaUnit.value === 'mil') rawDia *= 0.0254;
+
+            // 處理 Pitch 單位
+            let rawPitch = parseFloat(els.pitch.value) || 0;
+            if (els.pitchUnit.value === 'mil') rawPitch *= 0.0254;
+
+            return {
+                name: els.name.value,
+                shape: els.shape.value,
+                L: parseFloat(els.len.value) || 0,
+                W: parseFloat(els.wid.value) || 0,
+                D: parseFloat(els.dia.value) || 0,
+                pattern: els.pattern.value,
+                count: parseInt(els.count.value) || 0,
+                
+                // 這裡的 innerDia 已經確保是 mm
+                innerDia: rawDia, 
+                // 這裡的 pitch 已經確保是 mm
+                pitch: rawPitch,
+                
+                pcbT: parseFloat(els.pcbThick.value) || 0,
+                platingT: parseFloat(els.plating.value), // 已經是 mm (0.0254 or 0.035)
+                fillK: parseFloat(els.fill.value),
+                
+                // UI 狀態保留 (用於儲存)
+                rawDiaVal: els.layoutDia.value,
+                rawDiaUnit: els.layoutDiaUnit.value,
+                rawPitchVal: els.pitch.value,
+                rawPitchUnit: els.pitchUnit.value
+            };
+        }
+
+        function calculatePadArea(data) {
+            if (data.shape === 'square') {
+                return data.L * data.W;
+            } else {
+                return Math.PI * Math.pow(data.D / 2, 2);
+            }
+        }
+
+        // --- 4. 熱流計算核心 (邏輯修改) ---
+        function calculateKeff(data, padArea) {
+            if (padArea <= 0 || data.count <= 0) return { keff: 0, rth: 0, copperRatio: 0, singleViaR: 0 };
+
+            // 修正邏輯：輸入是 "Layout Via (Finished Hole)" = 內徑
+            const r_inner = data.innerDia / 2;
+            
+            const r_outer = r_inner + data.platingT;
+
+            // 1. 塞孔面積 (內徑面積)
+            const area_fill = Math.PI * Math.pow(r_inner, 2); 
+
+            // 2. 銅環面積 (外圓 - 內圓)
+            const area_copper = (Math.PI * Math.pow(r_outer, 2)) - area_fill;
+
+            // 3. Via 佔用的總足跡面積 (FR4 被挖掉的面積)
+            const area_via_footprint = Math.PI * Math.pow(r_outer, 2);
+
+            // 總面積加總
+            const total_area_copper = area_copper * data.count;
+            const total_area_fill = area_fill * data.count;
+            
+            // 剩餘 FR4 面積 = Pad 總面積 - 所有 Via 的佔用面積
+            const area_fr4 = padArea - (area_via_footprint * data.count); 
+
+            // 如果 FR4 面積變負的 (Via 塞爆)，修正為 0
+            const valid_area_fr4 = area_fr4 > 0 ? area_fr4 : 0;
+
+            // 熱傳導公式
+            const keff = (total_area_copper * K_COPPER + total_area_fill * data.fillK + valid_area_fr4 * K_FR4) / padArea;
+
+            // 熱阻計算 R = L / (K * A) * 1000
+            const rth = (data.pcbT / (keff * padArea)) * 1000;
+
+            // 單顆 Via 熱阻參考 (只看銅+填充)
+            const single_via_k_approx = (area_copper * K_COPPER + area_fill * data.fillK) / area_via_footprint; 
+            const single_via_r = (data.pcbT / (single_via_k_approx * area_via_footprint)) * 1000;
+
+            return {
+                keff: keff,
+                rth: rth,
+                copperRatio: total_area_copper / padArea,
+                singleViaR: single_via_r,
+                rOuter: r_outer // 傳出外徑供繪圖用
+            };
+        }
+
+        // --- 5. 自動 Pitch 計算 ---
+        function calculateAutoPitch() {
+            // 注意：這裡直接讀取 UI 值，因為要填回 UI
+            const data = getFormData(); // 取得已轉換為 mm 的數據
+            let padL, padW;
+
+            if (data.shape === 'square') {
+                padL = data.L - (2 * EDGE_CLEARANCE);
+                padW = data.W - (2 * EDGE_CLEARANCE);
+            } else {
+                const side = data.D / Math.sqrt(2);
+                padL = side - (2 * EDGE_CLEARANCE);
+                padW = side - (2 * EDGE_CLEARANCE);
+            }
+
+            if (padL <= 0 || padW <= 0 || data.count <= 1) {
+                alert("Pad 尺寸過小，無法進行自動排列。");
+                return;
+            }
+
+            const ratio = padL / padW;
+            const rows = Math.round(Math.sqrt(data.count / ratio));
+            const cols = Math.ceil(data.count / rows);
+
+            let pitchX = padL / (cols - 1 > 0 ? cols - 1 : 1);
+            let pitchY = padW / (rows - 1 > 0 ? rows - 1 : 1);
+
+            if (data.count === 1) {
+                els.pitch.value = 0;
+            } else {
+                let bestPitchMm = Math.min(pitchX, pitchY);
+                // 檢查使用者選的單位
+                if (els.pitchUnit.value === 'mil') {
+                    // 轉回 mil 填入
+                    els.pitch.value = (bestPitchMm / 0.0254).toFixed(2);
+                } else {
+                    els.pitch.value = bestPitchMm.toFixed(3);
+                }
+            }
+            updateAll();
+        }
+
+        // --- 6. Canvas 視覺化 (Updated: Hybrid Logic) ---
+        function drawVisualization(data) {
+            ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
+            els.warning.classList.add('hidden');
+
+            // --- Canvas Config ---
+            const canvasW = els.canvas.width;
+            const topViewH = 400;
+            const sideViewH = 250; 
+
+            // --- 1. Top View (俯視圖) ---
+            const padding = 40;
+            let maxDim = data.shape === 'square' ? Math.max(data.L, data.W) : data.D;
+            if (maxDim === 0) return;
+
+            // Calculate Scale
+            const scale = (canvasW - padding * 2) / maxDim;
+            const cx = canvasW / 2;
+            const cy = topViewH / 2;
+
+            // Draw Label
+            ctx.fillStyle = '#6b7280'; // gray-500
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText("Top View (俯視圖)", 10, 20);
+
+            // Draw Component Pad
+            ctx.fillStyle = '#dcfce7'; // green-100
+            ctx.strokeStyle = '#16a34a'; // green-600
+            ctx.lineWidth = 2;
+
+            if (data.shape === 'square') {
+                const wPx = data.W * scale;
+                const lPx = data.L * scale;
+                ctx.fillRect(cx - lPx/2, cy - wPx/2, lPx, wPx);
+                ctx.strokeRect(cx - lPx/2, cy - wPx/2, lPx, wPx);
+            } else {
+                const rPx = (data.D / 2) * scale;
+                ctx.beginPath();
+                ctx.arc(cx, cy, rPx, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // Safe Margin (Top View)
+            ctx.strokeStyle = '#bbf7d0';
+            ctx.setLineDash([5, 3]);
+            ctx.beginPath();
+            if (data.shape === 'square') {
+                const wSafe = (data.W - 2 * EDGE_CLEARANCE) * scale;
+                const lSafe = (data.L - 2 * EDGE_CLEARANCE) * scale;
+                if(wSafe > 0 && lSafe > 0) ctx.rect(cx - lSafe/2, cy - wSafe/2, lSafe, wSafe);
+            } else {
+                const rSafe = (data.D / 2 - EDGE_CLEARANCE) * scale;
+                if(rSafe > 0) ctx.arc(cx, cy, rSafe, 0, 2 * Math.PI);
+            }
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw Vias (Hybrid Logic)
+            if (data.count <= 0) return;
+
+            const r_outer = (data.innerDia / 2) + data.platingT;
+            const viaHoleRadiusPx = r_outer * scale; 
+            const viaPadRadiusPx = data.innerDia * scale;
+            const padDia = data.innerDia * 2;
+
+            let viasToDraw = [];
+
+            // ==========================================
+            //  HYBRID LOGIC BRANCHING
+            // ==========================================
+            if (data.shape === 'circular') {
+                // --- CASE A: CIRCULAR PAD (Center-Out) ---
+                const candidates = [];
+                const scanDim = data.D; 
+                // Scan slightly larger area to ensure coverage
+                const maxCol = Math.ceil(scanDim / data.pitch) + 4; 
+                const maxRow = Math.ceil(scanDim / (data.pitch * (data.pattern === 'staggered' ? 0.866 : 1))) + 4;
+
+                for (let r = -Math.ceil(maxRow/2); r <= Math.ceil(maxRow/2); r++) {
+                    for (let c = -Math.ceil(maxCol/2); c <= Math.ceil(maxCol/2); c++) {
+                        let x = c * data.pitch;
+                        let y = r * data.pitch * (data.pattern === 'staggered' ? 0.866 : 1);
+
+                        if (data.pattern === 'staggered' && r % 2 !== 0) {
+                            x += data.pitch / 2;
+                        }
+                        
+                        const dist = Math.sqrt(x*x + y*y);
+                        // Filter candidates reasonably within or near pad to optimize sort
+                        if (dist < (data.D/2) + data.pitch) { 
+                            candidates.push({x, y, dist});
+                        }
+                    }
+                }
+                // Sort closest to center first
+                candidates.sort((a, b) => a.dist - b.dist);
+                viasToDraw = candidates.slice(0, data.count);
+
+            } else {
+                // --- CASE B: SQUARE PAD (Rectangular Grid) ---
+                // Calculate optimal rows/cols to fit the aspect ratio
+                const ratio = data.L / data.W;
+                let cols = Math.round(Math.sqrt(data.count * ratio));
+                if (cols < 1) cols = 1;
+                let rows = Math.ceil(data.count / cols);
+
+                // Calculate total size of this grid block
+                const totalW = (cols - 1) * data.pitch;
+                const totalH = (rows - 1) * data.pitch * (data.pattern === 'staggered' ? 0.866 : 1);
+                
+                // Center the block
+                const startX = -totalW / 2;
+                const startY = -totalH / 2;
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        if (viasToDraw.length >= data.count) break;
+
+                        let x = startX + c * data.pitch;
+                        let y = startY + r * data.pitch * (data.pattern === 'staggered' ? 0.866 : 1);
+
+                        if (data.pattern === 'staggered' && r % 2 !== 0) {
+                            x += data.pitch / 2;
+                        }
+                        viasToDraw.push({x, y});
+                    }
+                }
+            }
+
+            // ==========================================
+            //  RENDERING LOOP
+            // ==========================================
+            let hasError = false;
+            // Helper to store drawn positions for overlap check
+            // Note: Since we are iterating viasToDraw which is already defined, we can just check against previous ones
+            const drawnPos = []; 
+
+            viasToDraw.forEach(pt => {
+                const {x, y} = pt;
+                
+                // Bounds Check
+                const outerDia = r_outer * 2;
+                const absX = Math.abs(x) + r_outer;
+                const absY = Math.abs(y) + r_outer;
+                let isOutOfBounds = false;
+
+                if (data.shape === 'square') {
+                    if (absX > data.L/2 || absY > data.W/2) isOutOfBounds = true;
+                } else {
+                    const distFromCenter = Math.sqrt(x*x + y*y) + r_outer;
+                    if (distFromCenter > data.D/2) isOutOfBounds = true;
+                }
+
+                // Overlap Check (Pad)
+                let isOverlap = false;
+                for (let existing of drawnPos) {
+                    const dist = Math.sqrt(Math.pow(x - existing.x, 2) + Math.pow(y - existing.y, 2));
+                    if (dist < padDia - 0.001) isOverlap = true; 
+                }
+
+                const drawX = cx + x * scale;
+                const drawY = cy + y * scale;
+
+                // Layer A: Via Pad
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, viaPadRadiusPx, 0, 2 * Math.PI);
+                ctx.fillStyle = (isOverlap) ? '#ef4444' : '#d97706'; 
+                ctx.fill();
+
+                // Layer B: Via Hole (Plated)
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, viaHoleRadiusPx, 0, 2 * Math.PI);
+                ctx.fillStyle = (isOutOfBounds) ? '#ef4444' : '#1f2937'; 
+                if (isOutOfBounds || isOverlap) hasError = true;
+                ctx.fill();
+
+                // Layer C: Inner Hole
+                ctx.beginPath();
+                ctx.arc(drawX, drawY, (data.innerDia/2) * scale, 0, 2 * Math.PI);
+                ctx.fillStyle = '#9ca3af'; 
+                ctx.fill();
+
+                drawnPos.push({x, y});
+            });
+
+            if (hasError) els.warning.classList.remove('hidden');
+
+            // --- 2. Side View (剖視圖) ---
+            if (data.count > 0 && maxDim > 0) {
+                const sideCy = topViewH + (sideViewH / 2);
+                const sideCx = cx;
+
+                // Label
+                ctx.fillStyle = '#6b7280';
+                ctx.textAlign = 'left';
+                ctx.fillText("Side View (Cross-Section A-A)", 10, topViewH + 20);
+                
+                // Draw Axis line
+                ctx.strokeStyle = '#e5e7eb';
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(10, sideCy);
+                ctx.lineTo(canvasW - 10, sideCy);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 2.1 Draw PCB Core (FR4)
+                const pcbHPx = data.pcbT * scale;
+                const pcbY = sideCy - (pcbHPx / 2);
+                let pcbWPx = (data.shape === 'square' ? data.L : data.D) * scale;
+                
+                ctx.fillStyle = '#15803d'; // green-700
+                ctx.fillRect(sideCx - pcbWPx/2, pcbY, pcbWPx, pcbHPx);
+
+                // 2.2 Draw Top & Bottom Copper Layers
+                const padThickPx = Math.max(data.platingT * scale, 2); 
+                
+                ctx.fillStyle = '#d97706'; 
+                // Top
+                ctx.fillRect(sideCx - pcbWPx/2, pcbY - padThickPx, pcbWPx, padThickPx);
+                // Bottom
+                ctx.fillRect(sideCx - pcbWPx/2, pcbY + pcbHPx, pcbWPx, padThickPx);
+
+                // 2.3 Draw Vias in Slice
+                let nearestYDist = Infinity;
+                drawnPos.forEach(v => {
+                    const d = Math.abs(v.y);
+                    if(d < nearestYDist) nearestYDist = d;
+                });
+
+                const tolerance = 0.01; 
+                const sliceVias = drawnPos.filter(v => Math.abs(Math.abs(v.y) - nearestYDist) < tolerance);
+
+                sliceVias.forEach(v => {
+                    const vx = sideCx + v.x * scale;
+                    const vOuterW = (r_outer * 2) * scale;
+                    const vInnerW = (data.innerDia) * scale;
+
+                    // Outer Wall (Plating)
+                    ctx.fillStyle = '#92400e'; 
+                    ctx.fillRect(vx - vOuterW/2, pcbY - padThickPx, vOuterW, pcbHPx + padThickPx*2);
+
+                    // Inner Fill
+                    ctx.fillStyle = '#cbd5e1'; 
+                    ctx.fillRect(vx - vInnerW/2, pcbY - padThickPx, vInnerW, pcbHPx + padThickPx*2);
+                });
+            }
+        }
+
+        // --- [修改區域] 核心資料管理功能 (支援本機/雲端) ---
+
+        // 儲存功能
+        async function saveData() {
+            const name = els.name.value.trim();
+            if (!name) {
+                alert('請輸入元件名稱！');
+                return;
+            }
+
+            const currentData = {
+                ...getFormData(),
+                timestamp: new Date().toISOString(),
+                resultK: els.resK.innerText
+            };
+
+            if (currentMode === 'local') {
+                // 本機儲存 (LocalStorage)
+                let db_local = JSON.parse(localStorage.getItem('thermal_via_db') || '{}');
+                if (db_local[name]) {
+                    if (confirm(`(本機) 元件 "${name}" 已存在！\n按「確定」覆蓋舊檔\n按「取消」另存新檔`)) {
+                        db_local[name] = currentData;
+                        saveToLS(db_local, name, "本機更新成功！");
+                    } else {
+                        const newName = prompt("請輸入新名稱:", name + "_copy");
+                        if (newName) {
+                            els.name.value = newName;
+                            currentData.name = newName;
+                            db_local[newName] = currentData;
+                            saveToLS(db_local, newName, "本機另存成功！");
+                        }
+                    }
+                } else {
+                    db_local[name] = currentData;
+                    saveToLS(db_local, name, "本機儲存成功！");
+                }
+            } else {
+                // 雲端儲存 (Firestore)
+                if (!currentUser) {
+                    alert("請先登入 Google 帳號！");
+                    return;
+                }
+                const docRef = doc(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data', name);
+                
+                try {
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                         if (confirm(`(雲端) 元件 "${name}" 已存在！\n按「確定」覆蓋舊檔\n按「取消」放棄`)) {
+                            await setDoc(docRef, currentData);
+                            alert("雲端更新成功！");
+                            updateHistorySelect();
+                         }
+                    } else {
+                        await setDoc(docRef, currentData);
+                        alert("雲端儲存成功！");
+                        updateHistorySelect();
+                        els.historySelect.value = name;
+                    }
+                } catch (e) {
+                    console.error("Cloud save error:", e);
+                    alert("雲端儲存失敗: " + e.message);
+                }
+            }
+        }
+
+        function saveToLS(db, name, msg) {
+            localStorage.setItem('thermal_via_db', JSON.stringify(db));
+            alert(msg);
+            updateHistorySelect();
+            els.historySelect.value = name;
+        }
+
+        async function updateHistorySelect() {
+            const sel = els.historySelect;
+            sel.innerHTML = '<option value="">-- 讀取中... --</option>';
+            
+            let keys = [];
+
+            if (currentMode === 'local') {
+                const db_local = JSON.parse(localStorage.getItem('thermal_via_db') || '{}');
+                keys = Object.keys(db_local);
+            } else {
+                if (currentUser && db) {
+                    try {
+                        const colRef = collection(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data');
+                        const snapshot = await getDocs(colRef);
+                        snapshot.forEach(doc => keys.push(doc.id));
+                    } catch (e) {
+                        console.error("Fetch list error:", e);
+                    }
+                }
+            }
+
+            sel.innerHTML = '<option value="">-- 選擇既有元件 --</option>';
+            keys.forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.innerText = key;
+                sel.appendChild(opt);
+            });
+        }
+
+        async function loadFromHistory() {
+            const name = els.historySelect.value;
+            if (!name) return;
+
+            let data = null;
+
+            if (currentMode === 'local') {
+                const db_local = JSON.parse(localStorage.getItem('thermal_via_db') || '{}');
+                data = db_local[name];
+            } else {
+                if (!currentUser) return;
+                 const docRef = doc(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data', name);
+                 const docSnap = await getDoc(docRef);
+                 if (docSnap.exists()) data = docSnap.data();
+            }
+
+            if (data) {
+                // 填入資料 (共用邏輯)
+                els.name.value = data.name;
+                els.shape.value = data.shape;
+                togglePadInputs(); 
+                
+                els.len.value = data.L.toFixed(3);
+                els.wid.value = data.W.toFixed(3);
+                els.dia.value = data.D.toFixed(3);
+                els.pattern.value = data.pattern;
+                els.count.value = data.count;
+                
+                if (data.rawDiaVal !== undefined) els.layoutDia.value = data.rawDiaVal;
+                if (data.rawDiaUnit !== undefined) els.layoutDiaUnit.value = data.rawDiaUnit;
+                if (data.rawPitchVal !== undefined) els.pitch.value = data.rawPitchVal;
+                if (data.rawPitchUnit !== undefined) els.pitchUnit.value = data.rawPitchUnit;
+
+                els.pcbThick.value = data.pcbT.toFixed(3);
+                
+                const platingMm = data.platingT;
+                if (Math.abs(platingMm - 0.035) < 0.005) {
+                    els.plating.value = "0.035";
+                } else {
+                    els.plating.value = "0.0254";
+                }
+
+                els.fill.value = data.fillK;
+
+                updateAll();
+            }
+        }
+
+        async function deleteCurrentData() {
+            const name = els.historySelect.value;
+            if (!name) {
+                alert("請先從選單選擇要刪除的資料。");
+                return;
+            }
+            if (confirm(`確定要刪除 "${name}" 嗎？ (${currentMode === 'local' ? '本機' : '雲端'})`)) {
+                
+                if (currentMode === 'local') {
+                    let db_local = JSON.parse(localStorage.getItem('thermal_via_db') || '{}');
+                    delete db_local[name];
+                    localStorage.setItem('thermal_via_db', JSON.stringify(db_local));
+                    alert("已從本機刪除。");
+                } else {
+                    if (!currentUser) return;
+                    try {
+                         await deleteDoc(doc(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data', name));
+                         alert("已從雲端刪除。");
+                    } catch(e) {
+                         alert("刪除失敗: " + e.message);
+                    }
+                }
+                
+                updateHistorySelect();
+                els.name.value = "";
+            }
+        }
+
+        // --- 新增: 模式切換與 Auth 操作 ---
+        
+        function switchMode(mode) {
+            currentMode = mode;
+            // UI 更新
+            const btnLocal = document.getElementById('btn-mode-local');
+            const btnCloud = document.getElementById('btn-mode-cloud');
+            const btnLogin = document.getElementById('btn-login');
+            
+            if (mode === 'local') {
+                btnLocal.classList.add('bg-slate-500', 'text-white');
+                btnLocal.classList.remove('text-gray-400', 'hover:bg-slate-600');
+                btnCloud.classList.remove('bg-slate-500', 'text-white');
+                btnCloud.classList.add('text-gray-400', 'hover:bg-slate-600');
+                
+                // 本機模式隱藏登入按鈕 (或可保留但沒作用)
+                btnLogin.classList.add('hidden');
+            } else {
+                btnCloud.classList.add('bg-slate-500', 'text-white');
+                btnCloud.classList.remove('text-gray-400', 'hover:bg-slate-600');
+                btnLocal.classList.remove('bg-slate-500', 'text-white');
+                btnLocal.classList.add('text-gray-400', 'hover:bg-slate-600');
+                
+                if (!currentUser) btnLogin.classList.remove('hidden');
+            }
+            
+            // 重新讀取列表
+            updateHistorySelect();
+        }
+
+        function doLogin() {
+            if (!auth) {
+                alert("Firebase 設定未填寫，無法登入。");
+                return;
+            }
+            const provider = new GoogleAuthProvider();
+            signInWithPopup(auth, provider).catch(error => {
+                console.error("Login failed:", error);
+                alert("登入失敗: " + error.message);
+            });
+        }
+
+        function doLogout() {
+            if(auth) signOut(auth);
+        }
+
+        // --- [重要] 將 Module 內的函式綁定到 Window ---
+        // 這是因為 HTML 的 onclick 屬性無法直接呼叫 type="module" 內的函式
+        window.saveData = saveData;
+        window.loadFromHistory = loadFromHistory;
+        window.deleteCurrentData = deleteCurrentData;
+        window.togglePadInputs = togglePadInputs;
+        window.calculateAutoPitch = calculateAutoPitch;
+        window.switchMode = switchMode;
+        window.doLogin = doLogin;
+        window.doLogout = doLogout;
+        // --- 綁定結束 ---
+
+        // --- 8. AI 修正後的功能 ---
+        async function askGemini(type) {
+            els.aiContainer.classList.remove('hidden');
+            els.aiLoading.classList.remove('hidden');
+            els.aiResponse.innerHTML = '';
+            
+            const data = getFormData();
+            const padArea = calculatePadArea(data);
+            const results = calculateKeff(data, padArea);
+            
+            let systemPrompt = "You are an expert Thermal Engineer. Answer in Traditional Chinese (Taiwan).";
+            
+            let userPrompt = `
+            Analyze the following Thermal Via design:
+            - Pad Size: ${data.shape === 'square' ? `${data.L}x${data.W}` : `Diameter ${data.D}`} mm
+            - PCB Thickness: ${data.pcbT} mm
+            - Via Count: ${data.count}
+            - Layout Via (Finished Hole): ${data.innerDia.toFixed(3)} mm
+            - Pitch: ${data.pitch.toFixed(3)} mm
+            - Plating Thickness: ${data.platingT.toFixed(4)} mm
+            
+            Calculated Results:
+            - Effective K (Keff): ${results.keff.toFixed(3)} W/mK
+            - Total Thermal Resistance (Rth): ${results.rth.toFixed(3)} K/W
+            `;
+
+             if (type === 'analysis') {
+                systemPrompt += " Use Markdown formatting for readability (bullet points, bold text).";
+                userPrompt += `Task: Perform a Design Health Check. Identify risks and suggest 3 specific optimizations.`;
+            } else {
+                // Report mode: Clean text
+                systemPrompt += " Output PLAIN TEXT ONLY. Do NOT use Markdown formatting (no **, no ##, no -). Do not use special symbols.";
+                userPrompt += `Task: Write a formal "Engineering Report Summary" paragraph. It should be a cohesive summary suitable for copying into an email or official report. Clearly state the input parameters and the final K-value.`;
+            }
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: userPrompt }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] }
+                    })
+                });
+                const json = await response.json();
+                if (json.error) throw new Error(json.error.message);
+                els.aiLoading.classList.add('hidden');
+                els.aiResponse.innerHTML = marked.parse(json.candidates[0].content.parts[0].text);
+            } catch (error) {
+                els.aiLoading.classList.add('hidden');
+                els.aiResponse.innerHTML = `<span class="text-red-500">Error: ${error.message}</span>`;
+            }
+        }
+        
+        // 將 AI 函式也綁定到 Window (因為按鈕會呼叫)
+        window.askGemini = askGemini;
+    </script>
+</body>
+</html>
