@@ -73,14 +73,18 @@
     <!-- 頂部導覽列 -->
     <header class="bg-slate-800 text-white p-4 shadow-md shrink-0">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold"><i class="fa-solid fa-microchip mr-2"></i>等效 K 值計算器 <span class="text-xs font-normal text-gray-400 ml-2">v2.8</span></h1>
+            <h1 class="text-xl font-bold"><i class="fa-solid fa-microchip mr-2"></i>等效 K 值計算器 <span class="text-xs font-normal text-gray-400 ml-2">v2.9</span></h1>
             
             <!-- [修改區域] 右側控制區：新增本機/雲端按鈕與登入狀態 -->
             <div class="flex items-center gap-4">
-                <!-- 模式切換 -->
-                <div class="bg-slate-700 rounded p-1 flex text-xs">
-                    <button id="btn-mode-local" onclick="switchMode('local')" class="px-3 py-1 rounded bg-slate-500 text-white font-bold transition">本機</button>
-                    <button id="btn-mode-cloud" onclick="switchMode('cloud')" class="px-3 py-1 rounded hover:bg-slate-600 text-gray-400 transition">雲端</button>
+                <!-- 模式切換 (美化版) -->
+                <div class="bg-slate-900 p-1 rounded-lg flex text-xs border border-slate-600 shadow-inner">
+                    <button id="btn-mode-local" onclick="switchMode('local')" class="px-3 py-1.5 rounded-md font-bold transition-all duration-300 flex items-center gap-2">
+                        <i class="fa-solid fa-hard-drive"></i> 本機
+                    </button>
+                    <button id="btn-mode-cloud" onclick="switchMode('cloud')" class="px-3 py-1.5 rounded-md font-bold transition-all duration-300 flex items-center gap-2">
+                        <i class="fa-solid fa-cloud"></i> 雲端
+                    </button>
                 </div>
                 
                 <!-- 登入/使用者狀態 -->
@@ -93,11 +97,6 @@
                 <button id="btn-login" onclick="doLogin()" class="hidden text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded transition">
                     <i class="fa-brands fa-google mr-1"></i> 登入
                 </button>
-
-                <!-- 日期顯示 -->
-                <div class="text-sm border-l border-slate-600 pl-4">
-                    <span id="current-date" class="opacity-80"></span>
-                </div>
             </div>
             <!-- [修改區域結束] -->
 
@@ -363,6 +362,15 @@
 
     <!-- JS 邏輯 -->
     <script type="module">
+        // ==========================================
+        //  版本紀錄 (Version History)
+        //  v2.9 (2026-02-15): 
+        //    - 優化介面: 美化本機/雲端切換按鈕 (新增圖示、顏色與光暈效果)
+        //    - 移除 Header 日期顯示
+        //    - 新增版本紀錄區塊
+        //  v2.8 (2026-02-15): 初始正式發布版，包含 Firebase 雲端功能整合
+        // ==========================================
+
         // --- [修改區域] Firebase SDK Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -505,8 +513,10 @@
 
         // 初始化
         window.addEventListener('DOMContentLoaded', () => {
-            const now = new Date();
-            document.getElementById('current-date').innerText = now.toLocaleDateString('zh-TW');
+            // const now = new Date(); // Date removed
+            // document.getElementById('current-date').innerText = now.toLocaleDateString('zh-TW'); // Date removed
+            // 初始化按鈕樣式
+            switchMode('local'); 
             updateHistorySelect();
             updateAll();
         });
@@ -1120,20 +1130,23 @@
             const btnCloud = document.getElementById('btn-mode-cloud');
             const btnLogin = document.getElementById('btn-login');
             
+            // 按鈕基礎樣式
+            const baseClass = "px-3 py-1.5 rounded-md font-bold transition-all duration-300 flex items-center gap-2";
+            // 本機激活樣式 (綠色系 + 光暈)
+            const activeLocal = "bg-emerald-600 text-white shadow-[0_0_10px_rgba(5,150,105,0.5)] scale-105";
+            // 雲端激活樣式 (藍色系 + 光暈)
+            const activeCloud = "bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)] scale-105";
+            // 未激活樣式
+            const inactive = "text-gray-400 hover:text-gray-200 hover:bg-slate-700";
+
+            // 重置並套用樣式
+            btnLocal.className = baseClass + " " + (mode === 'local' ? activeLocal : inactive);
+            btnCloud.className = baseClass + " " + (mode === 'cloud' ? activeCloud : inactive);
+            
             if (mode === 'local') {
-                btnLocal.classList.add('bg-slate-500', 'text-white');
-                btnLocal.classList.remove('text-gray-400', 'hover:bg-slate-600');
-                btnCloud.classList.remove('bg-slate-500', 'text-white');
-                btnCloud.classList.add('text-gray-400', 'hover:bg-slate-600');
-                
-                // 本機模式隱藏登入按鈕 (或可保留但沒作用)
+                // 本機模式隱藏登入按鈕
                 btnLogin.classList.add('hidden');
             } else {
-                btnCloud.classList.add('bg-slate-500', 'text-white');
-                btnCloud.classList.remove('text-gray-400', 'hover:bg-slate-600');
-                btnLocal.classList.remove('bg-slate-500', 'text-white');
-                btnLocal.classList.add('text-gray-400', 'hover:bg-slate-600');
-                
                 if (!currentUser) btnLogin.classList.remove('hidden');
             }
             
