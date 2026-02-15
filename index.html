@@ -1241,7 +1241,7 @@
             const padArea = calculatePadArea(data);
             const results = calculateKeff(data, padArea);
             
-            let systemPrompt = "You are an expert Thermal Engineer. Answer in Traditional Chinese (Taiwan).";
+            let systemPrompt = "You are an expert Thermal Engineer. Answer in Traditional Chinese (Taiwan). Do NOT use LaTeX math syntax (e.g. no $, no \\text, no \\frac). Please use plain text for all units and symbols.";
             
             let userPrompt = `
             Analyze the following Thermal Via design:
