@@ -249,6 +249,34 @@
                     </div>
                 </div>
 
+                <!-- 系統內建計算參數 (移至此處) -->
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-xs text-gray-500 shrink-0 mb-4">
+                    <h3 class="font-bold text-gray-600 mb-2 border-b border-gray-200 pb-1">
+                        <i class="fa-solid fa-circle-info mr-1"></i> 系統內建計算參數 (Calculation Constants)
+                    </h3>
+                    <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                        <div>
+                            <span class="font-semibold">K (Copper):</span> 385 W/mK
+                        </div>
+                        <div>
+                            <span class="font-semibold">K (FR4):</span> 0.3 W/mK
+                        </div>
+                        <div class="col-span-2">
+                            <span class="font-semibold">K (Fill Materials):</span> 
+                            Air (0.026), Solder (50), Epoxy (2.0) W/mK
+                        </div>
+                        <div>
+                            <span class="font-semibold">Edge Clearance:</span> 0.25 mm
+                        </div>
+                        <div>
+                            <span class="font-semibold">Unit (1 mil):</span> 0.0254 mm
+                        </div>
+                        <div>
+                            <span class="font-semibold">Unit (1 oz):</span> 0.035 mm
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 儲存按鈕 -->
                 <button onclick="saveData()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded shadow transition flex items-center justify-center">
                     <i class="fa-solid fa-floppy-disk mr-2"></i> 計算並儲存至資料庫
@@ -292,34 +320,6 @@
                      <div>
                          <div class="text-xs text-gray-500 mb-1">單顆 Via 熱阻</div>
                          <div class="text-lg font-semibold text-gray-600"><span id="result-single-r">0.000</span> K/W</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 3. ℹ️ 系統內建參數參考區 (Position Swapped: Moved UP) -->
-            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-xs text-gray-500 shrink-0 mb-4">
-                <h3 class="font-bold text-gray-600 mb-2 border-b border-gray-200 pb-1">
-                    <i class="fa-solid fa-circle-info mr-1"></i> 系統內建計算參數 (Calculation Constants)
-                </h3>
-                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                    <div>
-                        <span class="font-semibold">K (Copper):</span> 385 W/mK
-                    </div>
-                    <div>
-                        <span class="font-semibold">K (FR4):</span> 0.3 W/mK
-                    </div>
-                    <div class="col-span-2">
-                        <span class="font-semibold">K (Fill Materials):</span> 
-                        Air (0.026), Solder (50), Epoxy (2.0) W/mK
-                    </div>
-                    <div>
-                        <span class="font-semibold">Edge Clearance:</span> 0.25 mm
-                    </div>
-                    <div>
-                        <span class="font-semibold">Unit (1 mil):</span> 0.0254 mm
-                    </div>
-                    <div>
-                        <span class="font-semibold">Unit (1 oz):</span> 0.035 mm
                     </div>
                 </div>
             </div>
