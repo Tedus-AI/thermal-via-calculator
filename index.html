@@ -122,7 +122,15 @@
                         <option value="">-- 選擇既有元件 --</option>
                     </select>
                 </div>
-                <div class="flex gap-2 items-center">
+                <div class="flex gap-2 items-end">
+                    <div class="w-1/3">
+                        <label class="block text-xs text-gray-500 mb-1">元件類型 (Type)</label>
+                        <select id="comp-type" class="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium bg-white">
+                            <option value="RF">RF</option>
+                            <option value="Digital">Digital</option>
+                            <option value="PWR">PWR</option>
+                        </select>
+                    </div>
                     <div class="flex-1">
                         <label class="block text-xs text-gray-500 mb-1">元件名稱 (Name)</label>
                         <input type="text" id="comp-name" placeholder="例如: Power_IC_01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium">
@@ -439,6 +447,7 @@
 
         // DOM 元素快取
         const els = {
+            compType: document.getElementById('comp-type'),
             name: document.getElementById('comp-name'),
             shape: document.getElementById('pad-shape'),
             len: document.getElementById('pad-length'),
@@ -570,6 +579,7 @@
             if (els.pitchUnit.value === 'mil') rawPitch *= 0.0254;
 
             return {
+                type: els.compType.value,
                 name: els.name.value,
                 shape: els.shape.value,
                 L: parseFloat(els.len.value) || 0,
@@ -1019,17 +1029,17 @@
             const sel = els.historySelect;
             sel.innerHTML = '<option value="">-- 讀取中... --</option>';
             
-            let keys = [];
+            let items = []; // { name: string, type: string }
 
             if (currentMode === 'local') {
                 const db_local = JSON.parse(localStorage.getItem('thermal_via_db') || '{}');
-                keys = Object.keys(db_local);
+                items = Object.entries(db_local).map(([k, v]) => ({ name: k, type: v.type || 'Other' }));
             } else {
                 if (currentUser && db) {
                     try {
                         const colRef = collection(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data');
                         const snapshot = await getDocs(colRef);
-                        snapshot.forEach(doc => keys.push(doc.id));
+                        items = snapshot.docs.map(doc => ({ name: doc.id, type: doc.data().type || 'Other' }));
                     } catch (e) {
                         console.error("Fetch list error:", e);
                     }
@@ -1037,11 +1047,32 @@
             }
 
             sel.innerHTML = '<option value="">-- 選擇既有元件 --</option>';
-            keys.forEach(key => {
-                const opt = document.createElement('option');
-                opt.value = key;
-                opt.innerText = key;
-                sel.appendChild(opt);
+
+            const categories = ['RF', 'Digital', 'PWR', 'Other'];
+            
+            categories.forEach(cat => {
+                const groupItems = items.filter(i => {
+                    if (cat === 'Other') {
+                        // 處理舊資料或未分類
+                        return !['RF', 'Digital', 'PWR'].includes(i.type);
+                    }
+                    return i.type === cat;
+                });
+
+                if (groupItems.length > 0) {
+                    const group = document.createElement('optgroup');
+                    group.label = cat === 'Other' ? '未分類 (Uncategorized)' : cat;
+                    
+                    groupItems.sort((a, b) => a.name.localeCompare(b.name)); // 字母排序
+
+                    groupItems.forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.name;
+                        opt.innerText = item.name;
+                        group.appendChild(opt);
+                    });
+                    sel.appendChild(group);
+                }
             });
         }
 
@@ -1063,6 +1094,7 @@
 
             if (data) {
                 // 填入資料 (共用邏輯)
+                els.compType.value = data.type || 'RF';
                 els.name.value = data.name;
                 els.shape.value = data.shape;
                 togglePadInputs(); 
