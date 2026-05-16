@@ -3,353 +3,879 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>等效 K 值計算器 (Thermal Via K-Value)</title>
-    <!-- 引入 Tailwind CSS 進行快速排版 -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 FontAwesome 圖示 -->
+    <title>Thermal Via — Effective K Calculator</title>
+
+    <!-- Retainly design-system fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+    <!-- FontAwesome icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
-        /* 自定義樣式補充 */
+        /* =========================================================================
+           Retainly Design System — colors & type tokens
+           ========================================================================= */
+        :root {
+          --fg-1: #1f2235;
+          --fg-2: #4a4d62;
+          --fg-3: #8a8d9f;
+          --fg-4: #b8bac6;
+          --fg-inverse: #ffffff;
+
+          --bg-base:   #fafbfd;
+          --bg-elev-1: #ffffff;
+          --bg-elev-2: #f4f5f9;
+          --bg-dark:   #1c1d28;
+
+          --tint-blue-from:   #e6eefb;
+          --tint-blue-to:     #cdd9f1;
+          --tint-peach-from:  #fbe7dc;
+          --tint-peach-to:    #f4c8b6;
+          --tint-lilac-from:  #efe3f3;
+          --tint-lilac-to:    #d8c7ea;
+          --tint-cream-from:  #fbf2d5;
+          --tint-cream-to:    #f4dfa3;
+          --tint-mint-from:   #e3f1e7;
+          --tint-mint-to:     #c8e0d2;
+
+          --tint-blue:  #b9c8e8;
+          --tint-peach: #f0bba6;
+          --tint-lilac: #c9b3df;
+          --tint-cream: #efd591;
+          --tint-mint:  #b9d4c2;
+
+          --accent: #7a93ea;
+          --accent-hover: #5d7ce0;
+          --accent-soft: #eef2fc;
+          --accent-gradient:        linear-gradient(135deg, #8aa3ed 0%, #5d7ce0 100%);
+          --accent-gradient-hover:  linear-gradient(135deg, #7a93ea 0%, #4c6cd4 100%);
+
+          --success: #2f9e6b;
+          --success-soft: #e3f2eb;
+          --warning: #d98a17;
+          --warning-soft: #fbf0d6;
+          --danger:  #d65a4a;
+          --danger-soft: #fbe5e0;
+          --info:    var(--accent);
+          --info-soft: var(--accent-soft);
+
+          --border-1: rgba(28, 29, 40, 0.08);
+          --border-2: rgba(28, 29, 40, 0.14);
+          --border-3: rgba(28, 29, 40, 0.22);
+          --border-inverse: rgba(255,255,255,0.18);
+
+          --shadow-xs: 0 1px 2px rgba(28, 29, 40, 0.04);
+          --shadow-sm: 0 2px 6px rgba(28, 29, 40, 0.06), 0 1px 2px rgba(28, 29, 40, 0.04);
+          --shadow-md: 0 8px 24px rgba(28, 29, 40, 0.08), 0 2px 6px rgba(28, 29, 40, 0.04);
+          --shadow-lg: 0 24px 60px rgba(28, 29, 40, 0.12), 0 8px 16px rgba(28, 29, 40, 0.06);
+          --shadow-coin: 0 12px 28px rgba(28, 29, 40, 0.22), inset 0 1px 0 rgba(255,255,255,0.10);
+
+          --radius-xs: 6px;
+          --radius-sm: 10px;
+          --radius-md: 14px;
+          --radius-lg: 20px;
+          --radius-xl: 28px;
+          --radius-2xl: 36px;
+          --radius-pill: 999px;
+
+          --space-1:  4px;  --space-2:  8px;  --space-3: 12px;
+          --space-4: 16px;  --space-5: 20px;  --space-6: 24px;
+          --space-7: 32px;  --space-8: 40px;  --space-9: 56px;
+          --space-10: 72px; --space-11: 96px;
+
+          --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+          --font-body:    "Inter", system-ui, sans-serif;
+          --font-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+          --fs-display-xl: clamp(48px, 6vw, 88px);
+          --fs-display-lg: clamp(40px, 5vw, 64px);
+          --fs-display-md: 44px;
+          --fs-h1: 36px;   --fs-h2: 28px;   --fs-h3: 22px;   --fs-h4: 18px;
+          --fs-body-lg: 17px; --fs-body: 15px; --fs-body-sm: 13.5px;
+          --fs-caption: 12px; --fs-micro: 11px;
+
+          --lh-tight: 1.05; --lh-snug: 1.2; --lh-body: 1.5; --lh-loose: 1.65;
+
+          --tracking-tight: -0.025em; --tracking-snug: -0.012em;
+          --tracking-normal: 0; --tracking-wide: 0.04em;
+          --tracking-eyebrow: 0.12em;
+
+          --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+          --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+          --dur-fast: 120ms; --dur: 200ms; --dur-slow: 360ms;
+        }
+
+        /* ===== Reset / base ===== */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
         body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f3f4f6; /* 淺灰背景 */
+            font-family: var(--font-body);
+            font-size: var(--fs-body);
+            line-height: var(--lh-body);
+            color: var(--fg-1);
+            background: var(--bg-base);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            display: flex; flex-direction: column;
+            overflow: hidden;
         }
-        
-        /* 數值輸入框樣式優化 */
-        input[type="number"], input[type="text"], select {
-            transition: all 0.2s;
+        button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+        input, select { font-family: inherit; color: inherit; }
+        a { color: var(--accent); text-decoration: none; }
+        .hidden { display: none !important; }
+
+        /* ===== Header ===== */
+        .app-top {
+            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 28px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-1);
         }
-        input:focus, select:focus {
+        .brand { display: flex; align-items: center; gap: 12px; }
+        .brand .coin {
+            width: 34px; height: 34px; border-radius: 999px;
+            background: var(--bg-dark);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--shadow-coin);
+            color: #fff;
+        }
+        .brand .coin i { font-size: 14px; }
+        .brand .title {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 18px;
+            letter-spacing: var(--tracking-snug);
+            color: var(--fg-1);
+            line-height: 1.1;
+        }
+        .brand .sub {
+            font-family: var(--font-body);
+            font-weight: 500;
+            font-size: var(--fs-micro);
+            letter-spacing: var(--tracking-eyebrow);
+            text-transform: uppercase;
+            color: var(--fg-3);
+            margin-top: 2px;
+        }
+        .brand .stack { display: flex; flex-direction: column; }
+        .header-right { display: flex; align-items: center; gap: 14px; }
+        .header-right .ver { font-size: var(--fs-micro); color: var(--fg-3); letter-spacing: var(--tracking-eyebrow); text-transform: uppercase; font-weight: 600; }
+
+        /* Mode segmented control */
+        .seg {
+            display: inline-flex; padding: 4px;
+            background: var(--bg-elev-2);
+            border-radius: var(--radius-pill);
+            border: 1px solid var(--border-1);
+        }
+        .seg-btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            height: 30px; padding: 0 14px;
+            border-radius: var(--radius-pill);
+            font-size: var(--fs-caption);
+            font-weight: 600;
+            color: var(--fg-2);
+            transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+        }
+        .seg-btn i { font-size: 11px; }
+        .seg-btn:hover { color: var(--fg-1); }
+        .seg-btn.act {
+            background: var(--bg-elev-1);
+            color: var(--fg-1);
+            box-shadow: var(--shadow-xs);
+        }
+        .seg-btn.act.cloud { background: var(--fg-1); color: #fff; }
+
+        .auth-pill {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 6px 10px 6px 12px;
+            background: var(--bg-elev-2);
+            border-radius: var(--radius-pill);
+            border: 1px solid var(--border-1);
+            font-size: var(--fs-caption);
+            color: var(--fg-2);
+            max-width: 240px;
+        }
+        .auth-pill .av { width: 20px; height: 20px; border-radius: 999px; background: linear-gradient(135deg, #cdd9f1, #b9c8e8); flex-shrink: 0; }
+        .auth-pill #user-info { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+        .auth-pill button { color: var(--fg-3); padding: 2px 4px; border-radius: 6px; }
+        .auth-pill button:hover { color: var(--danger); background: var(--danger-soft); }
+
+        .btn-login {
+            display: inline-flex; align-items: center; gap: 8px;
+            height: 32px; padding: 0 14px;
+            background: var(--accent-gradient);
+            color: #fff; font-weight: 600; font-size: var(--fs-caption);
+            border-radius: var(--radius-pill);
+            box-shadow: var(--shadow-sm);
+            transition: filter var(--dur) var(--ease-out);
+        }
+        .btn-login:hover { filter: brightness(1.04); }
+
+        /* ===== Main layout ===== */
+        .app-main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: minmax(380px, 5fr) minmax(0, 7fr);
+            gap: 20px;
+            padding: 20px 24px;
+            overflow: hidden;
+            min-height: 0;
+        }
+        @media (max-width: 1024px) {
+            .app-main { grid-template-columns: 1fr; }
+        }
+        .col { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; min-height: 0; padding-right: 4px; }
+        .col > * { flex-shrink: 0; }
+
+        /* Scrollbar */
+        .col::-webkit-scrollbar { width: 8px; }
+        .col::-webkit-scrollbar-track { background: transparent; }
+        .col::-webkit-scrollbar-thumb { background: rgba(28,29,40,0.10); border-radius: 999px; }
+        .col::-webkit-scrollbar-thumb:hover { background: rgba(28,29,40,0.18); }
+
+        /* ===== Card ===== */
+        .card {
+            background: var(--bg-elev-1);
+            border: 1px solid var(--border-1);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+        .card .card-h {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px 12px;
+        }
+        .card .card-b { padding: 14px 18px 18px; }
+        .card .card-h.with-bg { background: var(--bg-elev-2); border-bottom: 1px solid var(--border-1); }
+
+        .eyebrow {
+            font-family: var(--font-body);
+            font-size: var(--fs-micro); font-weight: 600;
+            letter-spacing: var(--tracking-eyebrow);
+            text-transform: uppercase;
+            color: var(--fg-2);
+        }
+        .eyebrow .dot { display: inline-block; width: 6px; height: 6px; border-radius: 999px; background: var(--accent); margin-right: 6px; vertical-align: middle; transform: translateY(-1px); }
+        .eyebrow .dot.blue   { background: var(--accent); }
+        .eyebrow .dot.mint   { background: var(--success); }
+        .eyebrow .dot.peach  { background: var(--warning); }
+        .eyebrow .dot.lilac  { background: #9b78c9; }
+
+        /* ===== Section header inside left col ===== */
+        .sec-h {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 12px;
+        }
+        .sec-h h3 {
+            font-family: var(--font-display);
+            font-weight: 700; font-size: var(--fs-h4);
+            color: var(--fg-1);
+            letter-spacing: var(--tracking-snug);
+        }
+        .sec-h .badge {
+            margin-left: auto;
+            font-size: var(--fs-micro); font-weight: 600;
+            letter-spacing: var(--tracking-eyebrow); text-transform: uppercase;
+            color: var(--fg-3);
+        }
+
+        /* ===== Form controls ===== */
+        .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .field > label {
+            font-size: var(--fs-caption);
+            font-weight: 500;
+            color: var(--fg-2);
+        }
+        .field > label .hint { color: var(--fg-3); font-weight: 400; margin-left: 4px; }
+
+        .input, .select {
+            width: 100%; height: 36px; padding: 0 12px;
+            background: var(--bg-elev-1);
+            border: 1px solid var(--border-2);
+            border-radius: var(--radius-sm);
+            font-size: var(--fs-body-sm);
+            color: var(--fg-1);
+            transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
+        }
+        .input:hover, .select:hover { border-color: var(--border-3); }
+        .input:focus, .select:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(122,147,234,0.18);
+            background: #fff;
+        }
+        .select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238a8d9f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
         }
 
-        /* Canvas 畫布容器 */
-        #canvas-container {
-            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
-            background-size: 20px 20px; /* 網格背景 */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .grid-2 .col-span { grid-column: 1 / -1; }
+
+        /* Input with unit suffix select */
+        .input-unit { display: grid; grid-template-columns: 1fr 70px; gap: 6px; }
+        .input-unit .select { padding-left: 10px; padding-right: 26px; background-color: var(--bg-elev-2); border-color: var(--border-1); height: 36px; font-size: var(--fs-caption); font-weight: 600; }
+
+        /* History row */
+        .history-row { display: flex; gap: 8px; align-items: center; }
+        .history-row .select { flex: 1; }
+
+        /* Type + Name row */
+        .type-name { display: grid; grid-template-columns: 100px 1fr; gap: 10px; }
+
+        /* Info chip (calculated area) */
+        .info-chip {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, var(--tint-blue-from), var(--tint-blue-to));
+            border-radius: var(--radius-md);
+            margin-top: 4px;
+        }
+        .info-chip .lbl { font-size: var(--fs-caption); color: var(--fg-2); font-weight: 600; }
+        .info-chip .val { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-h4); color: var(--fg-1); letter-spacing: var(--tracking-snug); }
+        .info-chip .val .unit { font-family: var(--font-body); font-weight: 500; font-size: var(--fs-caption); color: var(--fg-2); margin-left: 4px; }
+
+        /* Inline buttons */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            height: 36px; padding: 0 14px;
+            border-radius: var(--radius-sm);
+            font-size: var(--fs-body-sm); font-weight: 600;
+            transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+        }
+        .btn:active { opacity: 0.92; }
+        .btn-ghost {
+            background: var(--bg-elev-2);
+            color: var(--fg-2);
+            border: 1px solid var(--border-1);
+        }
+        .btn-ghost:hover { background: #ecedf3; color: var(--fg-1); }
+        .btn-soft {
+            background: var(--accent-soft);
+            color: var(--accent-hover);
+            border: 1px solid rgba(122,147,234,0.25);
+        }
+        .btn-soft:hover { background: #e2e8fa; }
+        .btn-mint {
+            background: var(--success-soft);
+            color: var(--success);
+            border: 1px solid rgba(47,158,107,0.25);
+            font-weight: 600;
+            height: 36px;
+        }
+        .btn-mint:hover { background: #d3ead9; }
+        .btn-danger-text {
+            color: var(--danger);
+            font-size: var(--fs-caption);
+            padding: 4px 8px;
+            border-radius: var(--radius-xs);
+            display: inline-flex; align-items: center; gap: 5px;
+            transition: background var(--dur) var(--ease-out);
+        }
+        .btn-danger-text:hover { background: var(--danger-soft); }
+
+        .btn-primary {
+            width: 100%; height: 48px;
+            background: var(--fg-1);
+            color: #fff;
+            border-radius: var(--radius-md);
+            font-size: var(--fs-body); font-weight: 700;
+            letter-spacing: var(--tracking-snug);
+            box-shadow: var(--shadow-sm);
+            transition: background var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-primary:hover { background: #2a2c44; }
+
+        .auto-pitch-row {
+            display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end;
+        }
+        .auto-pitch-row .field { gap: 6px; }
+        .helper {
+            font-size: var(--fs-micro);
+            color: var(--fg-3);
+            font-style: italic;
+            text-align: right;
+            margin-top: 6px;
         }
 
-        /* 懸浮單位換算工具 */
+        /* Constants info card */
+        .const-card {
+            background: var(--bg-elev-2);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            border: 1px solid var(--border-1);
+        }
+        .const-card .ch {
+            font-size: var(--fs-caption); font-weight: 700;
+            color: var(--fg-2);
+            margin-bottom: 10px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .const-card .grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px;
+            font-size: var(--fs-micro);
+            color: var(--fg-3);
+            font-family: var(--font-mono);
+        }
+        .const-card .grid b { color: var(--fg-2); font-weight: 600; }
+        .const-card .grid .full { grid-column: 1 / -1; }
+
+        /* ===== Canvas card ===== */
+        .canvas-card {
+            position: relative;
+            background: linear-gradient(135deg, var(--tint-blue-from), var(--tint-blue-to));
+            border-radius: var(--radius-xl);
+            padding: 22px;
+            display: flex; flex-direction: column; align-items: center;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-1);
+        }
+        .canvas-card .canvas-header {
+            width: 100%;
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .canvas-card .canvas-frame {
+            background: #fff;
+            border-radius: var(--radius-lg);
+            padding: 12px;
+            box-shadow: var(--shadow-sm);
+            width: 100%;
+            display: flex; justify-content: center;
+            position: relative;
+        }
+        #viaCanvas { max-width: 100%; height: auto; display: block; }
+
+        .legend-row {
+            display: flex; flex-wrap: wrap; gap: 14px;
+            margin-top: 14px;
+            font-size: var(--fs-micro);
+            color: var(--fg-2);
+        }
+        .legend-row .lg { display: inline-flex; align-items: center; gap: 6px; }
+        .legend-row .swatch { width: 10px; height: 10px; border-radius: 3px; }
+
+        #warning-msg {
+            position: absolute;
+            top: 30px; left: 50%; transform: translateX(-50%);
+            background: var(--danger-soft);
+            border: 1px solid rgba(214,90,74,0.35);
+            color: var(--danger);
+            padding: 8px 14px;
+            border-radius: var(--radius-pill);
+            font-size: var(--fs-caption);
+            font-weight: 600;
+            box-shadow: var(--shadow-md);
+            display: flex; align-items: center; gap: 8px;
+            z-index: 10;
+        }
+
+        /* ===== Results card ===== */
+        .results-grid {
+            display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 14px;
+        }
+        @media (max-width: 720px) {
+            .results-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .res-tile {
+            background: var(--bg-elev-1);
+            border: 1px solid var(--border-1);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .res-tile.hero {
+            background: linear-gradient(135deg, var(--tint-mint-from), var(--tint-mint-to));
+            border-color: rgba(47,158,107,0.20);
+        }
+        .res-tile .l {
+            font-size: var(--fs-micro); font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-eyebrow);
+            color: var(--fg-3);
+        }
+        .res-tile.hero .l { color: var(--success); }
+        .res-tile .v {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 30px;
+            color: var(--fg-1);
+            line-height: 1.05;
+            letter-spacing: var(--tracking-tight);
+        }
+        .res-tile.small .v { font-size: 22px; }
+        .res-tile .v .unit {
+            font-family: var(--font-body);
+            font-weight: 500;
+            font-size: var(--fs-caption);
+            color: var(--fg-2);
+            margin-left: 4px;
+            letter-spacing: 0;
+        }
+        .res-tile.hero .v { font-size: 36px; }
+
+
+        /* ===== Floating unit converter ===== */
         #unit-converter {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(4px);
-            border: 1px solid #d1d5db;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            border-radius: 8px;
-            padding: 10px;
+            bottom: 18px; right: 18px;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-1);
+            box-shadow: var(--shadow-md);
+            border-radius: var(--radius-pill);
+            padding: 8px 14px;
             z-index: 50;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.85rem;
-            width: auto;
-            max-width: 300px;
+            display: flex; align-items: center; gap: 10px;
+            font-size: var(--fs-caption);
+            color: var(--fg-2);
+        }
+        #unit-converter .ico {
+            width: 26px; height: 26px;
+            background: var(--bg-elev-2);
+            border-radius: 999px;
+            display: inline-flex; align-items: center; justify-content: center;
+            color: var(--fg-2);
         }
         #unit-converter input {
-            width: 70px;
-            padding: 2px 5px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            width: 64px; height: 28px;
+            padding: 0 8px;
+            border: 1px solid var(--border-2);
+            border-radius: var(--radius-xs);
             text-align: center;
+            font-size: var(--fs-body-sm);
+            font-family: var(--font-mono);
+            background: var(--bg-elev-1);
+            color: var(--fg-1);
         }
+        #unit-converter input:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(122,147,234,0.18);
+        }
+        #unit-converter .lbl {
+            font-size: var(--fs-micro);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-eyebrow);
+            color: var(--fg-3);
+        }
+        #unit-converter .swap { color: var(--fg-3); font-size: 11px; }
 
-        /* AI 回覆區樣式 */
-        .prose h3 { font-size: 1.1em; font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; color: #1e293b; }
-        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
-        .prose p { margin-bottom: 0.8em; line-height: 1.6; }
-        .prose strong { color: #0f172a; font-weight: 600; }
+        /* Color-coded accent strips on sections */
+        .accent-bar {
+            width: 4px; height: 18px;
+            border-radius: 999px;
+            background: var(--accent);
+            flex-shrink: 0;
+        }
+        .accent-bar.green { background: var(--success); }
+        .accent-bar.orange { background: var(--warning); }
     </style>
 </head>
-<body class="text-gray-800 h-screen flex flex-col overflow-hidden">
+<body>
 
-    <!-- 頂部導覽列 -->
-    <header class="bg-slate-800 text-white p-4 shadow-md shrink-0">
-        <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl font-bold"><i class="fa-solid fa-microchip mr-2"></i>等效 K 值計算器 <span class="text-xs font-normal text-gray-400 ml-2">v3.0</span></h1>
-            
-            <!-- [修改區域] 右側控制區：新增本機/雲端按鈕與登入狀態 -->
-            <div class="flex items-center gap-4">
-                <!-- 模式切換 (美化版) -->
-                <div class="bg-slate-900 p-1 rounded-lg flex text-xs border border-slate-600 shadow-inner">
-                    <button id="btn-mode-local" onclick="switchMode('local')" class="px-3 py-1.5 rounded-md font-bold transition-all duration-300 flex items-center gap-2">
-                        <i class="fa-solid fa-hard-drive"></i> 本機
-                    </button>
-                    <button id="btn-mode-cloud" onclick="switchMode('cloud')" class="px-3 py-1.5 rounded-md font-bold transition-all duration-300 flex items-center gap-2">
-                        <i class="fa-solid fa-cloud"></i> 雲端
-                    </button>
-                </div>
-                
-                <!-- 登入/使用者狀態 -->
-                <div id="auth-container" class="hidden flex items-center gap-2">
-                    <span id="user-info" class="text-xs text-gray-300"></span>
-                    <button onclick="doLogout()" class="text-xs text-red-400 hover:text-red-300" title="登出">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
-                </div>
-                <button id="btn-login" onclick="doLogin()" class="hidden text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded transition">
-                    <i class="fa-brands fa-google mr-1"></i> 登入
+    <!-- ===== Header ===== -->
+    <header class="app-top">
+        <div class="brand">
+            <div class="coin"><i class="fa-solid fa-microchip"></i></div>
+            <div class="stack">
+                <span class="title">Thermal Via Calculator</span>
+                <span class="sub">Effective K · 等效 K 值</span>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <span class="ver">v3.0</span>
+
+            <!-- 模式切換 -->
+            <div class="seg" role="tablist">
+                <button id="btn-mode-local" onclick="switchMode('local')" class="seg-btn act" type="button">
+                    <i class="fa-solid fa-hard-drive"></i><span>本機</span>
+                </button>
+                <button id="btn-mode-cloud" onclick="switchMode('cloud')" class="seg-btn" type="button">
+                    <i class="fa-solid fa-cloud"></i><span>雲端</span>
                 </button>
             </div>
-            <!-- [修改區域結束] -->
 
+            <!-- 已登入 -->
+            <div id="auth-container" class="auth-pill hidden">
+                <span class="av"></span>
+                <span id="user-info"></span>
+                <button onclick="doLogout()" title="登出"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+            <!-- 未登入 -->
+            <button id="btn-login" onclick="doLogin()" class="btn-login hidden" type="button">
+                <i class="fa-brands fa-google"></i> Sign in
+            </button>
         </div>
     </header>
 
-    <!-- 主要內容區 (Grid Layout) -->
-    <div class="flex-1 container mx-auto p-4 overflow-hidden flex flex-col md:flex-row gap-4">
-        
-        <!-- 左側：輸入與控制面板 (可捲動) -->
-        <div class="w-full md:w-5/12 bg-white rounded-lg shadow-sm flex flex-col overflow-y-auto h-full scrollbar-thin">
-            
-            <!-- 1. 資料庫管理區 -->
-            <div class="p-4 border-b border-gray-200 bg-gray-50">
-                <div class="flex items-center justify-between mb-2">
-                    <label class="text-xs font-bold text-gray-500 uppercase">歷史紀錄 / 元件管理</label>
-                    <button onclick="deleteCurrentData()" class="text-red-500 hover:text-red-700 text-xs transition">
-                        <i class="fa-solid fa-trash-can mr-1"></i>刪除
+    <!-- ===== Main ===== -->
+    <div class="app-main">
+
+        <!-- Left column: inputs -->
+        <section class="col">
+
+            <!-- Library / history -->
+            <div class="card">
+                <div class="card-h with-bg">
+                    <span class="eyebrow"><span class="dot"></span>歷史紀錄 · Library</span>
+                    <button onclick="deleteCurrentData()" class="btn-danger-text" type="button">
+                        <i class="fa-solid fa-trash-can"></i> 刪除
                     </button>
                 </div>
-                <div class="flex gap-2 mb-2">
-                    <select id="history-select" onchange="loadFromHistory()" class="flex-1 border rounded px-2 py-1 text-sm bg-white">
-                        <option value="">-- 選擇既有元件 --</option>
-                    </select>
-                </div>
-                <div class="flex gap-2 items-end">
-                    <div class="w-1/3">
-                        <label class="block text-xs text-gray-500 mb-1">元件類型 (Type)</label>
-                        <select id="comp-type" class="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium bg-white">
-                            <option value="RF">RF</option>
-                            <option value="Digital">Digital</option>
-                            <option value="PWR">PWR</option>
+                <div class="card-b" style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="history-row">
+                        <select id="history-select" onchange="loadFromHistory()" class="select">
+                            <option value="">-- 選擇既有元件 --</option>
                         </select>
                     </div>
-                    <div class="flex-1">
-                        <label class="block text-xs text-gray-500 mb-1">元件名稱 (Name)</label>
-                        <input type="text" id="comp-name" placeholder="例如: Power_IC_01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm font-medium">
+                    <div class="type-name">
+                        <div class="field">
+                            <label>Type</label>
+                            <select id="comp-type" class="select">
+                                <option value="RF">RF</option>
+                                <option value="Digital">Digital</option>
+                                <option value="PWR">PWR</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>元件名稱 <span class="hint">Name</span></label>
+                            <input type="text" id="comp-name" class="input" placeholder="例如: Power_IC_01">
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="p-4 space-y-6">
-                
-                <!-- 2. 焊盤設定 (Pad Configuration) -->
-                <div>
-                    <h3 class="text-sm font-bold text-slate-700 border-l-4 border-blue-500 pl-2 mb-3">焊盤幾何 (Pad Geometry)</h3>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="col-span-2">
-                            <label class="block text-xs text-gray-600 mb-1">焊盤形狀 (Shape)</label>
-                            <select id="pad-shape" onchange="togglePadInputs()" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+            <!-- Pad geometry -->
+            <div class="card">
+                <div class="card-b">
+                    <div class="sec-h">
+                        <span class="accent-bar"></span>
+                        <h3>焊盤幾何 <span style="color: var(--fg-3); font-weight: 500; font-size: 13px; letter-spacing: 0;">Pad Geometry</span></h3>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="field col-span">
+                            <label>焊盤形狀 <span class="hint">Shape</span></label>
+                            <select id="pad-shape" onchange="togglePadInputs()" class="select">
                                 <option value="square">方形 (Square)</option>
                                 <option value="circular">圓形 (Circular)</option>
                             </select>
                         </div>
-                        
-                        <!-- 動態輸入區：方形顯示長寬，圓形顯示直徑 -->
-                        <div id="input-square-l" class="col-span-1">
-                            <label class="block text-xs text-gray-600 mb-1">長度 L (mm)</label>
-                            <input type="number" id="pad-length" value="5.00" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+
+                        <div id="input-square-l" class="field">
+                            <label>長度 L <span class="hint">mm</span></label>
+                            <input type="number" id="pad-length" value="5.00" step="0.01" class="input">
                         </div>
-                        <div id="input-square-w" class="col-span-1">
-                            <label class="block text-xs text-gray-600 mb-1">寬度 W (mm)</label>
-                            <input type="number" id="pad-width" value="5.00" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        <div id="input-square-w" class="field">
+                            <label>寬度 W <span class="hint">mm</span></label>
+                            <input type="number" id="pad-width" value="5.00" step="0.01" class="input">
                         </div>
-                        <div id="input-circle-d" class="col-span-2 hidden">
-                            <label class="block text-xs text-gray-600 mb-1">直徑 D (mm)</label>
-                            <input type="number" id="pad-diameter" value="5.00" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        <div id="input-circle-d" class="field col-span hidden">
+                            <label>直徑 D <span class="hint">mm</span></label>
+                            <input type="number" id="pad-diameter" value="5.00" step="0.01" class="input">
                         </div>
 
-                        <div class="col-span-2 bg-blue-50 p-2 rounded border border-blue-100 mt-1">
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs text-blue-600 font-medium">計算面積 (Area):</span>
-                                <span class="text-sm font-bold text-blue-800"><span id="display-area">25.000</span> mm²</span>
+                        <div class="col-span">
+                            <div class="info-chip">
+                                <span class="lbl">計算面積 · Pad Area</span>
+                                <span class="val"><span id="display-area">25.000</span><span class="unit">mm²</span></span>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- 3. Via 配置 (Via Configuration) -->
-                <div>
-                    <h3 class="text-sm font-bold text-slate-700 border-l-4 border-green-500 pl-2 mb-3">Via 配置 (Layout)</h3>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="col-span-2">
-                            <label class="block text-xs text-gray-600 mb-1">排列方式 (Pattern)</label>
-                            <select id="via-pattern" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+            <!-- Via layout -->
+            <div class="card">
+                <div class="card-b">
+                    <div class="sec-h">
+                        <span class="accent-bar green"></span>
+                        <h3>Via 配置 <span style="color: var(--fg-3); font-weight: 500; font-size: 13px; letter-spacing: 0;">Layout</span></h3>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="field col-span">
+                            <label>排列方式 <span class="hint">Pattern</span></label>
+                            <select id="via-pattern" class="select">
                                 <option value="matrix">矩陣排列 (Matrix Grid)</option>
-                                <option value="staggered">交錯排列 (Staggered/Hex)</option>
+                                <option value="staggered">交錯排列 (Staggered / Hex)</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-xs text-gray-600 mb-1">Via 數量 (Count)</label>
-                            <input type="number" id="via-count" value="9" min="1" step="1" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        <div class="field">
+                            <label>Via 數量 <span class="hint">Count</span></label>
+                            <input type="number" id="via-count" value="9" min="1" step="1" class="input">
                         </div>
-                        
-                        <!-- Layout Via Diameter (With Unit) -->
-                        <div>
-                            <label class="block text-xs text-gray-600 mb-1">Layout Via 直徑 (內徑)</label>
-                            <div class="flex gap-1">
-                                <input type="number" id="layout-dia" value="8.00" step="0.01" class="w-2/3 border border-gray-300 rounded px-2 py-1 text-sm">
-                                <select id="layout-dia-unit" class="w-1/3 border border-gray-300 rounded px-1 py-1 text-xs bg-gray-50">
+                        <div class="field">
+                            <label>Layout 直徑 <span class="hint">內徑</span></label>
+                            <div class="input-unit">
+                                <input type="number" id="layout-dia" value="8.00" step="0.01" class="input">
+                                <select id="layout-dia-unit" class="select">
                                     <option value="mil" selected>mil</option>
                                     <option value="mm">mm</option>
                                 </select>
                             </div>
                         </div>
-                        
-                        <!-- Pitch (With Unit) -->
-                        <div class="col-span-2 flex gap-2 items-end">
-                            <div class="flex-1">
-                                <label class="block text-xs text-gray-600 mb-1">中心間距 Pitch</label>
-                                <div class="flex gap-1">
-                                    <input type="number" id="via-pitch" value="16.00" step="0.01" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
-                                    <select id="via-pitch-unit" class="w-[60px] border border-gray-300 rounded px-1 py-1 text-xs bg-gray-50">
-                                        <option value="mil" selected>mil</option>
-                                        <option value="mm">mm</option>
-                                    </select>
+
+                        <div class="col-span">
+                            <div class="auto-pitch-row">
+                                <div class="field">
+                                    <label>中心間距 <span class="hint">Pitch</span></label>
+                                    <div class="input-unit">
+                                        <input type="number" id="via-pitch" value="16.00" step="0.01" class="input">
+                                        <select id="via-pitch-unit" class="select">
+                                            <option value="mil" selected>mil</option>
+                                            <option value="mm">mm</option>
+                                        </select>
+                                    </div>
                                 </div>
+                                <button onclick="calculateAutoPitch()" class="btn btn-mint" type="button">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> 自動計算
+                                </button>
                             </div>
-                            <button onclick="calculateAutoPitch()" class="bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 rounded px-3 py-1 text-xs h-[30px] transition font-medium whitespace-nowrap mb-[1px]">
-                                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>自動計算
-                            </button>
+                            <p class="helper">* 自動計算預設邊距 (Edge Clearance) 為 0.25 mm</p>
                         </div>
-                        <p class="col-span-2 text-[10px] text-gray-400 italic text-right">*自動計算預設邊距 (Edge Clearance) 為 0.25mm</p>
                     </div>
                 </div>
+            </div>
 
-                <!-- 4. 材料參數 (Material Params) -->
-                <div>
-                    <h3 class="text-sm font-bold text-slate-700 border-l-4 border-orange-500 pl-2 mb-3">材料與厚度 (Material)</h3>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs text-gray-600 mb-1">PCB 總厚度 (mm)</label>
-                            <input type="number" id="pcb-thickness" value="1.60" step="0.05" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+            <!-- Material -->
+            <div class="card">
+                <div class="card-b">
+                    <div class="sec-h">
+                        <span class="accent-bar orange"></span>
+                        <h3>材料與厚度 <span style="color: var(--fg-3); font-weight: 500; font-size: 13px; letter-spacing: 0;">Material</span></h3>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="field">
+                            <label>PCB 總厚度 <span class="hint">mm</span></label>
+                            <input type="number" id="pcb-thickness" value="1.60" step="0.05" class="input">
                         </div>
-                        <div>
-                            <label class="block text-xs text-gray-600 mb-1">鍍銅厚度 (Plating)</label>
-                            <select id="plating-thickness" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
+                        <div class="field">
+                            <label>鍍銅厚度 <span class="hint">Plating</span></label>
+                            <select id="plating-thickness" class="select">
                                 <option value="0.0254">1 mil (0.0254 mm)</option>
                                 <option value="0.035">1 oz (0.035 mm)</option>
                             </select>
                         </div>
-                        <div class="col-span-2">
-                            <label class="block text-xs text-gray-600 mb-1">塞孔材料 (Fill Material)</label>
-                            <select id="fill-material" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm">
-                                <option value="0.026">空氣 (Air, K=0.026)</option>
-                                <option value="50">錫膏 (Solder Paste, K=50)</option>
-                                <option value="2">導熱膠 (Epoxy, K~2.0)</option>
+                        <div class="field col-span">
+                            <label>塞孔材料 <span class="hint">Fill Material</span></label>
+                            <select id="fill-material" class="select">
+                                <option value="0.026">空氣 (Air, K = 0.026)</option>
+                                <option value="50">錫膏 (Solder Paste, K = 50)</option>
+                                <option value="2">導熱膠 (Epoxy, K ~ 2.0)</option>
                             </select>
                         </div>
                     </div>
                 </div>
-
-                <!-- 系統內建計算參數 (移至此處) -->
-                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-xs text-gray-500 shrink-0 mb-4">
-                    <h3 class="font-bold text-gray-600 mb-2 border-b border-gray-200 pb-1">
-                        <i class="fa-solid fa-circle-info mr-1"></i> 系統內建計算參數 (Calculation Constants)
-                    </h3>
-                    <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                        <div>
-                            <span class="font-semibold">K (Copper):</span> 385 W/mK
-                        </div>
-                        <div>
-                            <span class="font-semibold">K (FR4):</span> 0.3 W/mK
-                        </div>
-                        <div class="col-span-2">
-                            <span class="font-semibold">K (Fill Materials):</span> 
-                            Air (0.026), Solder (50), Epoxy (2.0) W/mK
-                        </div>
-                        <div>
-                            <span class="font-semibold">Edge Clearance:</span> 0.25 mm
-                        </div>
-                        <div>
-                            <span class="font-semibold">Unit (1 mil):</span> 0.0254 mm
-                        </div>
-                        <div>
-                            <span class="font-semibold">Unit (1 oz):</span> 0.035 mm
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 儲存按鈕 -->
-                <button onclick="saveData()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded shadow transition flex items-center justify-center">
-                    <i class="fa-solid fa-floppy-disk mr-2"></i> 計算並儲存至資料庫
-                </button>
-
-                <div class="h-8"></div> <!-- Spacer -->
             </div>
-        </div>
 
-        <!-- 右側：視覺化與結果顯示 (可捲動) -->
-        <div class="w-full md:w-7/12 flex flex-col gap-4 h-full overflow-y-auto scrollbar-thin pr-1">
-            
-            <!-- 1. Canvas 視覺化區 -->
-            <div class="bg-white p-4 rounded-lg shadow-sm flex flex-col items-center justify-center relative min-h-[300px] shrink-0" id="canvas-container">
-                <!-- 增加高度以容納側視圖 -->
-                <canvas id="viaCanvas" width="400" height="650" class="max-w-full max-h-full"></canvas>
-                
-                <!-- 警告訊息浮層 -->
-                <div id="warning-msg" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded text-sm font-bold shadow-md hidden flex items-center z-10">
-                    <i class="fa-solid fa-triangle-exclamation mr-2"></i>
-                    <span>干涉警告：Via 焊盤重疊或超出邊界！</span>
+            <!-- Constants -->
+            <div class="const-card">
+                <div class="ch"><i class="fa-solid fa-circle-info"></i> 計算常數 · Calculation Constants</div>
+                <div class="grid">
+                    <div><b>K (Copper)</b> · 385 W/mK</div>
+                    <div><b>K (FR4)</b> · 0.3 W/mK</div>
+                    <div class="full"><b>K (Fill)</b> · Air 0.026 · Solder 50 · Epoxy 2.0 W/mK</div>
+                    <div><b>Edge Clearance</b> · 0.25 mm</div>
+                    <div><b>Unit</b> · 1 mil = 0.0254 mm</div>
                 </div>
             </div>
 
-            <!-- 2. 計算結果區 -->
-            <div class="bg-white p-5 rounded-lg shadow-sm shrink-0">
-                <h2 class="text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider border-b pb-2">計算結果 (Results)</h2>
-                <div class="grid grid-cols-2 gap-6">
-                    <div>
-                        <div class="text-xs text-gray-500 mb-1">等效 K 值 (Effective K)</div>
-                        <div class="text-3xl font-bold text-slate-800"><span id="result-k">0.000</span> <span class="text-sm font-normal text-gray-500">W/mK</span></div>
-                    </div>
-                    <div>
-                        <div class="text-xs text-gray-500 mb-1">總熱阻 (Thermal Resistance)</div>
-                        <div class="text-xl font-bold text-gray-600"><span id="result-r">0.000</span> <span class="text-sm font-normal text-gray-500">K/W</span></div>
-                    </div>
-                    <div>
-                         <div class="text-xs text-gray-500 mb-1">銅面積佔比 (Copper Ratio)</div>
-                         <div class="text-lg font-semibold text-orange-600"><span id="result-ratio">0.000</span> %</div>
-                    </div>
-                     <div>
-                         <div class="text-xs text-gray-500 mb-1">單顆 Via 熱阻</div>
-                         <div class="text-lg font-semibold text-gray-600"><span id="result-single-r">0.000</span> K/W</div>
+            <!-- Save -->
+            <button onclick="saveData()" class="btn-primary" type="button">
+                <i class="fa-solid fa-floppy-disk"></i> 計算並儲存至資料庫
+            </button>
+
+            <div style="height: 12px;"></div>
+        </section>
+
+        <!-- Right column: viz + results + AI -->
+        <section class="col">
+
+            <!-- Canvas -->
+            <div class="canvas-card" id="canvas-container">
+                <div class="canvas-header">
+                    <span class="eyebrow"><span class="dot blue"></span>Visualization · 視覺化</span>
+                    <span class="eyebrow" style="color: var(--fg-3); letter-spacing: var(--tracking-eyebrow);">Top + Cross Section</span>
+                </div>
+                <div class="canvas-frame">
+                    <canvas id="viaCanvas" width="400" height="650"></canvas>
+                </div>
+
+                <div class="legend-row">
+                    <span class="lg"><span class="swatch" style="background:#dcfce7; border:1px solid #16a34a;"></span> Component Pad</span>
+                    <span class="lg"><span class="swatch" style="background:#d97706;"></span> Copper Plating</span>
+                    <span class="lg"><span class="swatch" style="background:#9ca3af;"></span> Fill / Hole</span>
+                    <span class="lg"><span class="swatch" style="background:#15803d;"></span> FR4 Core</span>
+                </div>
+
+                <div id="warning-msg" class="hidden">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span>干涉警告:Via 焊盤重疊或超出邊界</span>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="card">
+                <div class="card-h">
+                    <span class="eyebrow"><span class="dot mint"></span>計算結果 · Results</span>
+                    <span style="font-size: var(--fs-micro); color: var(--fg-3); font-family: var(--font-mono);">live</span>
+                </div>
+                <div class="card-b">
+                    <div class="results-grid">
+                        <div class="res-tile hero">
+                            <span class="l">Effective K · 等效 K</span>
+                            <span class="v"><span id="result-k">0.000</span><span class="unit">W/mK</span></span>
+                        </div>
+                        <div class="res-tile">
+                            <span class="l">Thermal Rth</span>
+                            <span class="v"><span id="result-r">0.000</span><span class="unit">K/W</span></span>
+                        </div>
+                        <div class="res-tile small">
+                            <span class="l">Copper Ratio</span>
+                            <span class="v" style="color: var(--warning);"><span id="result-ratio">0.000</span><span class="unit">%</span></span>
+                        </div>
+                        <div class="res-tile small">
+                            <span class="l">Single Via R</span>
+                            <span class="v"><span id="result-single-r">0.000</span><span class="unit">K/W</span></span>
+                        </div>
                     </div>
                 </div>
             </div>
 
 
-        </div>
+            <div style="height: 12px;"></div>
+        </section>
     </div>
 
-    <!-- 懸浮單位換算工具 (角落) -->
+    <!-- ===== Floating unit converter ===== -->
     <div id="unit-converter">
-        <i class="fa-solid fa-ruler-combined text-gray-400"></i>
-        <input type="number" id="conv-mil" placeholder="mil" step="0.1">
-        <span class="text-xs text-gray-500">mil</span>
-        <i class="fa-solid fa-arrow-right-arrow-left text-xs text-gray-400"></i>
-        <input type="number" id="conv-mm" placeholder="mm" step="0.01">
-        <span class="text-xs text-gray-500">mm</span>
+        <span class="ico"><i class="fa-solid fa-ruler-combined"></i></span>
+        <input type="number" id="conv-mil" placeholder="0" step="0.1">
+        <span class="lbl">mil</span>
+        <span class="swap"><i class="fa-solid fa-arrow-right-arrow-left"></i></span>
+        <input type="number" id="conv-mm" placeholder="0" step="0.01">
+        <span class="lbl">mm</span>
     </div>
 
-    <!-- JS 邏輯 -->
+    <!-- ===== JS logic ===== -->
     <script type="module">
         // ==========================================
-        //  版本紀錄 (Version History)
-        //  v3.0 (2026-02-15):
-        //    - 正式發布版本 (Official Release)
-        //    - 確認本機/雲端/AI功能運作正常
-        //  v2.9 (2026-02-15): 
-        //    - 優化介面: 美化本機/雲端切換按鈕 (新增圖示、顏色與光暈效果)
-        //    - 移除 Header 日期顯示
-        //    - 新增版本紀錄區塊
-        //  v2.8 (2026-02-15): 初始正式發布版，包含 Firebase 雲端功能整合
+        //  Thermal Via — Effective K Calculator
+        //  v3.0 (2026-02-15): Official release
+        //  v3.1 (2026-05-16): Retainly design system UI refresh
         // ==========================================
 
-        // --- [修改區域] Firebase SDK Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -357,9 +883,7 @@
         // --- 1. 全域變數與初始化 ---
         const K_COPPER = 385;
         const K_FR4 = 0.3;
-        const EDGE_CLEARANCE = 0.25; // 自動計算時的邊距 mm
-        // --- [修改區域] Firebase Config 與 狀態變數 ---
-        // 請在此填入您的 Firebase 設定
+        const EDGE_CLEARANCE = 0.25;
         const firebaseConfig = {
             apiKey: "AIzaSyDWhBpjY8iVCwOLj4zdudgrtTnLPpF-CAo",
             authDomain: "thermal-tool-thermal-via-cala.firebaseapp.com",
@@ -369,25 +893,21 @@
             appId: "1:441951997169:web:93286e298c5ddc3104ad50",
             measurementId: "G-T9YW551BYM"
         };
-        
-        // 限制允許的 Google 帳號 (請修改此處)
-        const ALLOWED_EMAIL = "tedus.chen@gmail.com"; 
+        const ALLOWED_EMAIL = "tedus.chen@gmail.com";
 
         let app, auth, db, currentUser;
-        let currentMode = 'local'; // 'local' or 'cloud'
+        let currentMode = 'local';
 
-        // 初始化 Firebase (若有 config)
         if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
             try {
                 app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
-                
-                // Auth Listener
+
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         if (user.email !== ALLOWED_EMAIL) {
-                            alert(`此系統只限帳號 ${ALLOWED_EMAIL} 使用，您 (${user.email}) 無權限。`);
+                            alert(`此系統只限帳號 ${ALLOWED_EMAIL} 使用,您 (${user.email}) 無權限。`);
                             signOut(auth);
                             return;
                         }
@@ -400,10 +920,9 @@
                         currentUser = null;
                         document.getElementById('auth-container').classList.add('hidden');
                         if (currentMode === 'cloud') {
-                             document.getElementById('btn-login').classList.remove('hidden');
-                             // 清空列表
-                             const sel = document.getElementById('history-select');
-                             sel.innerHTML = '<option value="">-- 請先登入 --</option>';
+                            document.getElementById('btn-login').classList.remove('hidden');
+                            const sel = document.getElementById('history-select');
+                            sel.innerHTML = '<option value="">-- 請先登入 --</option>';
                         }
                     }
                 });
@@ -411,7 +930,6 @@
                 console.error("Firebase init failed:", e);
             }
         }
-        // --- [修改區域結束] ---
 
         // DOM 元素快取
         const els = {
@@ -424,47 +942,32 @@
             displayArea: document.getElementById('display-area'),
             pattern: document.getElementById('via-pattern'),
             count: document.getElementById('via-count'),
-            
-            // Modified inputs
             layoutDia: document.getElementById('layout-dia'),
             layoutDiaUnit: document.getElementById('layout-dia-unit'),
             pitch: document.getElementById('via-pitch'),
             pitchUnit: document.getElementById('via-pitch-unit'),
-            
             pcbThick: document.getElementById('pcb-thickness'),
             plating: document.getElementById('plating-thickness'),
             fill: document.getElementById('fill-material'),
-            
-            // 介面控制
             containerL: document.getElementById('input-square-l'),
             containerW: document.getElementById('input-square-w'),
             containerD: document.getElementById('input-circle-d'),
             warning: document.getElementById('warning-msg'),
-            
-            // 結果顯示
             resK: document.getElementById('result-k'),
             resR: document.getElementById('result-r'),
             resRatio: document.getElementById('result-ratio'),
             resSingleR: document.getElementById('result-single-r'),
-            
-            // 換算工具
             convMil: document.getElementById('conv-mil'),
             convMm: document.getElementById('conv-mm'),
-            
-            // Canvas
             canvas: document.getElementById('viaCanvas'),
-            
-            // History
-            historySelect: document.getElementById('history-select'),
-
+            historySelect: document.getElementById('history-select')
         };
 
         const ctx = els.canvas.getContext('2d');
 
-        // --- 2. 事件監聽 (Event Listeners) ---
-        // 綁定所有輸入框的 change 與 input 事件，以觸發即時計算
+        // --- 2. 事件監聽 ---
         const inputs = [
-            els.shape, els.len, els.wid, els.dia, 
+            els.shape, els.len, els.wid, els.dia,
             els.pattern, els.count, els.layoutDia, els.layoutDiaUnit,
             els.pitch, els.pitchUnit,
             els.pcbThick, els.plating, els.fill
@@ -474,7 +977,6 @@
             input.addEventListener('change', updateAll);
         });
 
-        // 單位換算工具邏輯
         els.convMil.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             if (!isNaN(val)) els.convMm.value = (val * 0.0254).toFixed(3);
@@ -484,19 +986,13 @@
             if (!isNaN(val)) els.convMil.value = (val / 0.0254).toFixed(2);
         });
 
-        // 初始化
         window.addEventListener('DOMContentLoaded', () => {
-            // const now = new Date(); // Date removed
-            // document.getElementById('current-date').innerText = now.toLocaleDateString('zh-TW'); // Date removed
-            // 初始化按鈕樣式
-            switchMode('local'); 
+            switchMode('local');
             updateHistorySelect();
             updateAll();
         });
 
-        // --- 3. 核心邏輯功能 ---
-
-        // 切換方形/圓形輸入框
+        // --- 3. 核心邏輯 ---
         function togglePadInputs() {
             const isSquare = els.shape.value === 'square';
             if (isSquare) {
@@ -508,37 +1004,25 @@
                 els.containerW.classList.add('hidden');
                 els.containerD.classList.remove('hidden');
             }
-            updateAll(); // 重新計算
+            updateAll();
         }
 
-        // 主更新函數
         function updateAll() {
             const data = getFormData();
-            
-            // 1. 計算面積
             const padArea = calculatePadArea(data);
             els.displayArea.innerText = padArea.toFixed(3);
-
-            // 2. 計算 K 值
             const results = calculateKeff(data, padArea);
-            
-            // 3. 更新 UI 結果 (3位小數)
             els.resK.innerText = results.keff.toFixed(3);
             els.resR.innerText = results.rth.toFixed(3);
             els.resRatio.innerText = (results.copperRatio * 100).toFixed(3);
             els.resSingleR.innerText = results.singleViaR.toFixed(3);
-
-            // 4. 繪製 Canvas
             drawVisualization(data);
         }
 
-        // 取得表單資料 (含單位轉換)
         function getFormData() {
-            // 處理 Layout Dia 單位
             let rawDia = parseFloat(els.layoutDia.value) || 0;
             if (els.layoutDiaUnit.value === 'mil') rawDia *= 0.0254;
 
-            // 處理 Pitch 單位
             let rawPitch = parseFloat(els.pitch.value) || 0;
             if (els.pitchUnit.value === 'mil') rawPitch *= 0.0254;
 
@@ -551,17 +1035,11 @@
                 D: parseFloat(els.dia.value) || 0,
                 pattern: els.pattern.value,
                 count: parseInt(els.count.value) || 0,
-                
-                // 這裡的 innerDia 已經確保是 mm
-                innerDia: rawDia, 
-                // 這裡的 pitch 已經確保是 mm
+                innerDia: rawDia,
                 pitch: rawPitch,
-                
                 pcbT: parseFloat(els.pcbThick.value) || 0,
-                platingT: parseFloat(els.plating.value), // 已經是 mm (0.0254 or 0.035)
+                platingT: parseFloat(els.plating.value),
                 fillK: parseFloat(els.fill.value),
-                
-                // UI 狀態保留 (用於儲存)
                 rawDiaVal: els.layoutDia.value,
                 rawDiaUnit: els.layoutDiaUnit.value,
                 rawPitchVal: els.pitch.value,
@@ -570,49 +1048,28 @@
         }
 
         function calculatePadArea(data) {
-            if (data.shape === 'square') {
-                return data.L * data.W;
-            } else {
-                return Math.PI * Math.pow(data.D / 2, 2);
-            }
+            if (data.shape === 'square') return data.L * data.W;
+            return Math.PI * Math.pow(data.D / 2, 2);
         }
 
-        // --- 4. 熱流計算核心 (邏輯修改) ---
         function calculateKeff(data, padArea) {
             if (padArea <= 0 || data.count <= 0) return { keff: 0, rth: 0, copperRatio: 0, singleViaR: 0 };
 
-            // 修正邏輯：輸入是 "Layout Via (Finished Hole)" = 內徑
             const r_inner = data.innerDia / 2;
-            
             const r_outer = r_inner + data.platingT;
-
-            // 1. 塞孔面積 (內徑面積)
-            const area_fill = Math.PI * Math.pow(r_inner, 2); 
-
-            // 2. 銅環面積 (外圓 - 內圓)
+            const area_fill = Math.PI * Math.pow(r_inner, 2);
             const area_copper = (Math.PI * Math.pow(r_outer, 2)) - area_fill;
-
-            // 3. Via 佔用的總足跡面積 (FR4 被挖掉的面積)
             const area_via_footprint = Math.PI * Math.pow(r_outer, 2);
 
-            // 總面積加總
             const total_area_copper = area_copper * data.count;
             const total_area_fill = area_fill * data.count;
-            
-            // 剩餘 FR4 面積 = Pad 總面積 - 所有 Via 的佔用面積
-            const area_fr4 = padArea - (area_via_footprint * data.count); 
-
-            // 如果 FR4 面積變負的 (Via 塞爆)，修正為 0
+            const area_fr4 = padArea - (area_via_footprint * data.count);
             const valid_area_fr4 = area_fr4 > 0 ? area_fr4 : 0;
 
-            // 熱傳導公式
             const keff = (total_area_copper * K_COPPER + total_area_fill * data.fillK + valid_area_fr4 * K_FR4) / padArea;
-
-            // 熱阻計算 R = L / (K * A) * 1000
             const rth = (data.pcbT / (keff * padArea)) * 1000;
 
-            // 單顆 Via 熱阻參考 (只看銅+填充)
-            const single_via_k_approx = (area_copper * K_COPPER + area_fill * data.fillK) / area_via_footprint; 
+            const single_via_k_approx = (area_copper * K_COPPER + area_fill * data.fillK) / area_via_footprint;
             const single_via_r = (data.pcbT / (single_via_k_approx * area_via_footprint)) * 1000;
 
             return {
@@ -620,14 +1077,12 @@
                 rth: rth,
                 copperRatio: total_area_copper / padArea,
                 singleViaR: single_via_r,
-                rOuter: r_outer // 傳出外徑供繪圖用
+                rOuter: r_outer
             };
         }
 
-        // --- 5. 自動 Pitch 計算 ---
         function calculateAutoPitch() {
-            // 注意：這裡直接讀取 UI 值，因為要填回 UI
-            const data = getFormData(); // 取得已轉換為 mm 的數據
+            const data = getFormData();
             let padL, padW;
 
             if (data.shape === 'square') {
@@ -640,7 +1095,7 @@
             }
 
             if (padL <= 0 || padW <= 0 || data.count <= 1) {
-                alert("Pad 尺寸過小，無法進行自動排列。");
+                alert("Pad 尺寸過小,無法進行自動排列。");
                 return;
             }
 
@@ -655,9 +1110,7 @@
                 els.pitch.value = 0;
             } else {
                 let bestPitchMm = Math.min(pitchX, pitchY);
-                // 檢查使用者選的單位
                 if (els.pitchUnit.value === 'mil') {
-                    // 轉回 mil 填入
                     els.pitch.value = (bestPitchMm / 0.0254).toFixed(2);
                 } else {
                     els.pitch.value = bestPitchMm.toFixed(3);
@@ -666,35 +1119,32 @@
             updateAll();
         }
 
-        // --- 6. Canvas 視覺化 (Updated: Hybrid Logic) ---
+        // --- 6. Canvas 視覺化 ---
         function drawVisualization(data) {
             ctx.clearRect(0, 0, els.canvas.width, els.canvas.height);
             els.warning.classList.add('hidden');
 
-            // --- Canvas Config ---
             const canvasW = els.canvas.width;
             const topViewH = 400;
-            const sideViewH = 250; 
+            const sideViewH = 250;
 
-            // --- 1. Top View (俯視圖) ---
             const padding = 40;
             let maxDim = data.shape === 'square' ? Math.max(data.L, data.W) : data.D;
             if (maxDim === 0) return;
 
-            // Calculate Scale
             const scale = (canvasW - padding * 2) / maxDim;
             const cx = canvasW / 2;
             const cy = topViewH / 2;
 
-            // Draw Label
-            ctx.fillStyle = '#6b7280'; // gray-500
-            ctx.font = '12px sans-serif';
+            // Top view label
+            ctx.fillStyle = '#8a8d9f';
+            ctx.font = '600 11px "Inter", system-ui, sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText("Top View (俯視圖)", 10, 20);
+            ctx.fillText("TOP VIEW · 俯視圖", 10, 20);
 
-            // Draw Component Pad
-            ctx.fillStyle = '#dcfce7'; // green-100
-            ctx.strokeStyle = '#16a34a'; // green-600
+            // Component pad
+            ctx.fillStyle = '#dcfce7';
+            ctx.strokeStyle = '#16a34a';
             ctx.lineWidth = 2;
 
             if (data.shape === 'square') {
@@ -710,7 +1160,7 @@
                 ctx.stroke();
             }
 
-            // Safe Margin (Top View)
+            // Safe margin
             ctx.strokeStyle = '#bbf7d0';
             ctx.setLineDash([5, 3]);
             ctx.beginPath();
@@ -725,91 +1175,60 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Draw Vias (Hybrid Logic)
             if (data.count <= 0) return;
 
             const r_outer = (data.innerDia / 2) + data.platingT;
-            const viaHoleRadiusPx = r_outer * scale; 
+            const viaHoleRadiusPx = r_outer * scale;
             const viaPadRadiusPx = data.innerDia * scale;
             const padDia = data.innerDia * 2;
 
             let viasToDraw = [];
 
-            // ==========================================
-            //  HYBRID LOGIC BRANCHING
-            // ==========================================
             if (data.shape === 'circular') {
-                // --- CASE A: CIRCULAR PAD (Center-Out) ---
                 const candidates = [];
-                const scanDim = data.D; 
-                // Scan slightly larger area to ensure coverage
-                const maxCol = Math.ceil(scanDim / data.pitch) + 4; 
+                const scanDim = data.D;
+                const maxCol = Math.ceil(scanDim / data.pitch) + 4;
                 const maxRow = Math.ceil(scanDim / (data.pitch * (data.pattern === 'staggered' ? 0.866 : 1))) + 4;
 
                 for (let r = -Math.ceil(maxRow/2); r <= Math.ceil(maxRow/2); r++) {
                     for (let c = -Math.ceil(maxCol/2); c <= Math.ceil(maxCol/2); c++) {
                         let x = c * data.pitch;
                         let y = r * data.pitch * (data.pattern === 'staggered' ? 0.866 : 1);
-
-                        if (data.pattern === 'staggered' && r % 2 !== 0) {
-                            x += data.pitch / 2;
-                        }
-                        
+                        if (data.pattern === 'staggered' && r % 2 !== 0) x += data.pitch / 2;
                         const dist = Math.sqrt(x*x + y*y);
-                        // Filter candidates reasonably within or near pad to optimize sort
-                        if (dist < (data.D/2) + data.pitch) { 
-                            candidates.push({x, y, dist});
-                        }
+                        if (dist < (data.D/2) + data.pitch) candidates.push({x, y, dist});
                     }
                 }
-                // Sort closest to center first
                 candidates.sort((a, b) => a.dist - b.dist);
                 viasToDraw = candidates.slice(0, data.count);
 
             } else {
-                // --- CASE B: SQUARE PAD (Rectangular Grid) ---
-                // Calculate optimal rows/cols to fit the aspect ratio
                 const ratio = data.L / data.W;
                 let cols = Math.round(Math.sqrt(data.count * ratio));
                 if (cols < 1) cols = 1;
                 let rows = Math.ceil(data.count / cols);
 
-                // Calculate total size of this grid block
                 const totalW = (cols - 1) * data.pitch;
                 const totalH = (rows - 1) * data.pitch * (data.pattern === 'staggered' ? 0.866 : 1);
-                
-                // Center the block
                 const startX = -totalW / 2;
                 const startY = -totalH / 2;
 
                 for (let r = 0; r < rows; r++) {
                     for (let c = 0; c < cols; c++) {
                         if (viasToDraw.length >= data.count) break;
-
                         let x = startX + c * data.pitch;
                         let y = startY + r * data.pitch * (data.pattern === 'staggered' ? 0.866 : 1);
-
-                        if (data.pattern === 'staggered' && r % 2 !== 0) {
-                            x += data.pitch / 2;
-                        }
+                        if (data.pattern === 'staggered' && r % 2 !== 0) x += data.pitch / 2;
                         viasToDraw.push({x, y});
                     }
                 }
             }
 
-            // ==========================================
-            //  RENDERING LOOP
-            // ==========================================
             let hasError = false;
-            // Helper to store drawn positions for overlap check
-            // Note: Since we are iterating viasToDraw which is already defined, we can just check against previous ones
-            const drawnPos = []; 
+            const drawnPos = [];
 
             viasToDraw.forEach(pt => {
                 const {x, y} = pt;
-                
-                // Bounds Check
-                const outerDia = r_outer * 2;
                 const absX = Math.abs(x) + r_outer;
                 const absY = Math.abs(y) + r_outer;
                 let isOutOfBounds = false;
@@ -821,33 +1240,29 @@
                     if (distFromCenter > data.D/2) isOutOfBounds = true;
                 }
 
-                // Overlap Check (Pad)
                 let isOverlap = false;
                 for (let existing of drawnPos) {
                     const dist = Math.sqrt(Math.pow(x - existing.x, 2) + Math.pow(y - existing.y, 2));
-                    if (dist < padDia - 0.001) isOverlap = true; 
+                    if (dist < padDia - 0.001) isOverlap = true;
                 }
 
                 const drawX = cx + x * scale;
                 const drawY = cy + y * scale;
 
-                // Layer A: Via Pad
                 ctx.beginPath();
                 ctx.arc(drawX, drawY, viaPadRadiusPx, 0, 2 * Math.PI);
-                ctx.fillStyle = (isOverlap) ? '#ef4444' : '#d97706'; 
+                ctx.fillStyle = (isOverlap) ? '#ef4444' : '#d97706';
                 ctx.fill();
 
-                // Layer B: Via Hole (Plated)
                 ctx.beginPath();
                 ctx.arc(drawX, drawY, viaHoleRadiusPx, 0, 2 * Math.PI);
-                ctx.fillStyle = (isOutOfBounds) ? '#ef4444' : '#1f2937'; 
+                ctx.fillStyle = (isOutOfBounds) ? '#ef4444' : '#1f2937';
                 if (isOutOfBounds || isOverlap) hasError = true;
                 ctx.fill();
 
-                // Layer C: Inner Hole
                 ctx.beginPath();
                 ctx.arc(drawX, drawY, (data.innerDia/2) * scale, 0, 2 * Math.PI);
-                ctx.fillStyle = '#9ca3af'; 
+                ctx.fillStyle = '#9ca3af';
                 ctx.fill();
 
                 drawnPos.push({x, y});
@@ -855,17 +1270,16 @@
 
             if (hasError) els.warning.classList.remove('hidden');
 
-            // --- 2. Side View (剖視圖) ---
+            // Side view
             if (data.count > 0 && maxDim > 0) {
                 const sideCy = topViewH + (sideViewH / 2);
                 const sideCx = cx;
 
-                // Label
-                ctx.fillStyle = '#6b7280';
+                ctx.fillStyle = '#8a8d9f';
+                ctx.font = '600 11px "Inter", system-ui, sans-serif';
                 ctx.textAlign = 'left';
-                ctx.fillText("Side View (Cross-Section A-A)", 10, topViewH + 20);
-                
-                // Draw Axis line
+                ctx.fillText("SIDE VIEW · 剖視圖 A-A", 10, topViewH + 20);
+
                 ctx.strokeStyle = '#e5e7eb';
                 ctx.setLineDash([5, 5]);
                 ctx.beginPath();
@@ -874,31 +1288,25 @@
                 ctx.stroke();
                 ctx.setLineDash([]);
 
-                // 2.1 Draw PCB Core (FR4)
                 const pcbHPx = data.pcbT * scale;
                 const pcbY = sideCy - (pcbHPx / 2);
                 let pcbWPx = (data.shape === 'square' ? data.L : data.D) * scale;
-                
-                ctx.fillStyle = '#15803d'; // green-700
+
+                ctx.fillStyle = '#15803d';
                 ctx.fillRect(sideCx - pcbWPx/2, pcbY, pcbWPx, pcbHPx);
 
-                // 2.2 Draw Top & Bottom Copper Layers
-                const padThickPx = Math.max(data.platingT * scale, 2); 
-                
-                ctx.fillStyle = '#d97706'; 
-                // Top
+                const padThickPx = Math.max(data.platingT * scale, 2);
+                ctx.fillStyle = '#d97706';
                 ctx.fillRect(sideCx - pcbWPx/2, pcbY - padThickPx, pcbWPx, padThickPx);
-                // Bottom
                 ctx.fillRect(sideCx - pcbWPx/2, pcbY + pcbHPx, pcbWPx, padThickPx);
 
-                // 2.3 Draw Vias in Slice
                 let nearestYDist = Infinity;
                 drawnPos.forEach(v => {
                     const d = Math.abs(v.y);
                     if(d < nearestYDist) nearestYDist = d;
                 });
 
-                const tolerance = 0.01; 
+                const tolerance = 0.01;
                 const sliceVias = drawnPos.filter(v => Math.abs(Math.abs(v.y) - nearestYDist) < tolerance);
 
                 sliceVias.forEach(v => {
@@ -906,26 +1314,19 @@
                     const vOuterW = (r_outer * 2) * scale;
                     const vInnerW = (data.innerDia) * scale;
 
-                    // Outer Wall (Plating)
-                    ctx.fillStyle = '#92400e'; 
+                    ctx.fillStyle = '#92400e';
                     ctx.fillRect(vx - vOuterW/2, pcbY - padThickPx, vOuterW, pcbHPx + padThickPx*2);
 
-                    // Inner Fill
-                    ctx.fillStyle = '#cbd5e1'; 
+                    ctx.fillStyle = '#cbd5e1';
                     ctx.fillRect(vx - vInnerW/2, pcbY - padThickPx, vInnerW, pcbHPx + padThickPx*2);
                 });
             }
         }
 
-        // --- [修改區域] 核心資料管理功能 (支援本機/雲端) ---
-
-        // 儲存功能
+        // --- 7. 資料管理 ---
         async function saveData() {
             const name = els.name.value.trim();
-            if (!name) {
-                alert('請輸入元件名稱！');
-                return;
-            }
+            if (!name) { alert('請輸入元件名稱!'); return; }
 
             const currentData = {
                 ...getFormData(),
@@ -934,44 +1335,38 @@
             };
 
             if (currentMode === 'local') {
-                // 本機儲存 (LocalStorage)
                 let db_local = JSON.parse(localStorage.getItem('thermal_via_db') || '{}');
                 if (db_local[name]) {
-                    if (confirm(`(本機) 元件 "${name}" 已存在！\n按「確定」覆蓋舊檔\n按「取消」另存新檔`)) {
+                    if (confirm(`(本機) 元件 "${name}" 已存在!\n按「確定」覆蓋舊檔\n按「取消」另存新檔`)) {
                         db_local[name] = currentData;
-                        saveToLS(db_local, name, "本機更新成功！");
+                        saveToLS(db_local, name, "本機更新成功!");
                     } else {
                         const newName = prompt("請輸入新名稱:", name + "_copy");
                         if (newName) {
                             els.name.value = newName;
                             currentData.name = newName;
                             db_local[newName] = currentData;
-                            saveToLS(db_local, newName, "本機另存成功！");
+                            saveToLS(db_local, newName, "本機另存成功!");
                         }
                     }
                 } else {
                     db_local[name] = currentData;
-                    saveToLS(db_local, name, "本機儲存成功！");
+                    saveToLS(db_local, name, "本機儲存成功!");
                 }
             } else {
-                // 雲端儲存 (Firestore)
-                if (!currentUser) {
-                    alert("請先登入 Google 帳號！");
-                    return;
-                }
+                if (!currentUser) { alert("請先登入 Google 帳號!"); return; }
                 const docRef = doc(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data', name);
-                
                 try {
                     const docSnap = await getDoc(docRef);
                     if (docSnap.exists()) {
-                         if (confirm(`(雲端) 元件 "${name}" 已存在！\n按「確定」覆蓋舊檔\n按「取消」放棄`)) {
+                        if (confirm(`(雲端) 元件 "${name}" 已存在!\n按「確定」覆蓋舊檔\n按「取消」放棄`)) {
                             await setDoc(docRef, currentData);
-                            alert("雲端更新成功！");
+                            alert("雲端更新成功!");
                             updateHistorySelect();
-                         }
+                        }
                     } else {
                         await setDoc(docRef, currentData);
-                        alert("雲端儲存成功！");
+                        alert("雲端儲存成功!");
                         updateHistorySelect();
                         els.historySelect.value = name;
                     }
@@ -992,8 +1387,7 @@
         async function updateHistorySelect() {
             const sel = els.historySelect;
             sel.innerHTML = '<option value="">-- 讀取中... --</option>';
-            
-            let items = []; // { name: string, type: string }
+            let items = [];
 
             if (currentMode === 'local') {
                 const db_local = JSON.parse(localStorage.getItem('thermal_via_db') || '{}');
@@ -1011,24 +1405,17 @@
             }
 
             sel.innerHTML = '<option value="">-- 選擇既有元件 --</option>';
-
             const categories = ['RF', 'Digital', 'PWR', 'Other'];
-            
+
             categories.forEach(cat => {
                 const groupItems = items.filter(i => {
-                    if (cat === 'Other') {
-                        // 處理舊資料或未分類
-                        return !['RF', 'Digital', 'PWR'].includes(i.type);
-                    }
+                    if (cat === 'Other') return !['RF', 'Digital', 'PWR'].includes(i.type);
                     return i.type === cat;
                 });
-
                 if (groupItems.length > 0) {
                     const group = document.createElement('optgroup');
                     group.label = cat === 'Other' ? '未分類 (Uncategorized)' : cat;
-                    
-                    groupItems.sort((a, b) => a.name.localeCompare(b.name)); // 字母排序
-
+                    groupItems.sort((a, b) => a.name.localeCompare(b.name));
                     groupItems.forEach(item => {
                         const opt = document.createElement('option');
                         opt.value = item.name;
@@ -1043,7 +1430,6 @@
         async function loadFromHistory() {
             const name = els.historySelect.value;
             if (!name) return;
-
             let data = null;
 
             if (currentMode === 'local') {
@@ -1051,52 +1437,37 @@
                 data = db_local[name];
             } else {
                 if (!currentUser) return;
-                 const docRef = doc(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data', name);
-                 const docSnap = await getDoc(docRef);
-                 if (docSnap.exists()) data = docSnap.data();
+                const docRef = doc(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data', name);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) data = docSnap.data();
             }
 
             if (data) {
-                // 填入資料 (共用邏輯)
                 els.compType.value = data.type || 'RF';
                 els.name.value = data.name;
                 els.shape.value = data.shape;
-                togglePadInputs(); 
-                
+                togglePadInputs();
                 els.len.value = data.L.toFixed(3);
                 els.wid.value = data.W.toFixed(3);
                 els.dia.value = data.D.toFixed(3);
                 els.pattern.value = data.pattern;
                 els.count.value = data.count;
-                
                 if (data.rawDiaVal !== undefined) els.layoutDia.value = data.rawDiaVal;
                 if (data.rawDiaUnit !== undefined) els.layoutDiaUnit.value = data.rawDiaUnit;
                 if (data.rawPitchVal !== undefined) els.pitch.value = data.rawPitchVal;
                 if (data.rawPitchUnit !== undefined) els.pitchUnit.value = data.rawPitchUnit;
-
                 els.pcbThick.value = data.pcbT.toFixed(3);
-                
                 const platingMm = data.platingT;
-                if (Math.abs(platingMm - 0.035) < 0.005) {
-                    els.plating.value = "0.035";
-                } else {
-                    els.plating.value = "0.0254";
-                }
-
+                els.plating.value = (Math.abs(platingMm - 0.035) < 0.005) ? "0.035" : "0.0254";
                 els.fill.value = data.fillK;
-
                 updateAll();
             }
         }
 
         async function deleteCurrentData() {
             const name = els.historySelect.value;
-            if (!name) {
-                alert("請先從選單選擇要刪除的資料。");
-                return;
-            }
-            if (confirm(`確定要刪除 "${name}" 嗎？ (${currentMode === 'local' ? '本機' : '雲端'})`)) {
-                
+            if (!name) { alert("請先從選單選擇要刪除的資料。"); return; }
+            if (confirm(`確定要刪除 "${name}" 嗎? (${currentMode === 'local' ? '本機' : '雲端'})`)) {
                 if (currentMode === 'local') {
                     let db_local = JSON.parse(localStorage.getItem('thermal_via_db') || '{}');
                     delete db_local[name];
@@ -1105,56 +1476,38 @@
                 } else {
                     if (!currentUser) return;
                     try {
-                         await deleteDoc(doc(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data', name));
-                         alert("已從雲端刪除。");
-                    } catch(e) {
-                         alert("刪除失敗: " + e.message);
-                    }
+                        await deleteDoc(doc(db, 'artifacts', firebaseConfig.appId, 'users', currentUser.uid, 'data', name));
+                        alert("已從雲端刪除。");
+                    } catch(e) { alert("刪除失敗: " + e.message); }
                 }
-                
                 updateHistorySelect();
                 els.name.value = "";
             }
         }
 
-        // --- 新增: 模式切換與 Auth 操作 ---
-        
+        // --- 模式切換 ---
         function switchMode(mode) {
             currentMode = mode;
-            // UI 更新
             const btnLocal = document.getElementById('btn-mode-local');
             const btnCloud = document.getElementById('btn-mode-cloud');
             const btnLogin = document.getElementById('btn-login');
-            
-            // 按鈕基礎樣式
-            const baseClass = "px-3 py-1.5 rounded-md font-bold transition-all duration-300 flex items-center gap-2";
-            // 本機激活樣式 (綠色系 + 光暈)
-            const activeLocal = "bg-emerald-600 text-white shadow-[0_0_10px_rgba(5,150,105,0.5)] scale-105";
-            // 雲端激活樣式 (藍色系 + 光暈)
-            const activeCloud = "bg-blue-600 text-white shadow-[0_0_10px_rgba(37,99,235,0.5)] scale-105";
-            // 未激活樣式
-            const inactive = "text-gray-400 hover:text-gray-200 hover:bg-slate-700";
 
-            // 重置並套用樣式
-            btnLocal.className = baseClass + " " + (mode === 'local' ? activeLocal : inactive);
-            btnCloud.className = baseClass + " " + (mode === 'cloud' ? activeCloud : inactive);
-            
+            btnLocal.classList.remove('act', 'cloud');
+            btnCloud.classList.remove('act', 'cloud');
+
             if (mode === 'local') {
-                // 本機模式隱藏登入按鈕
+                btnLocal.classList.add('act');
                 btnLogin.classList.add('hidden');
             } else {
+                btnCloud.classList.add('act', 'cloud');
                 if (!currentUser) btnLogin.classList.remove('hidden');
             }
-            
-            // 重新讀取列表
+
             updateHistorySelect();
         }
 
         function doLogin() {
-            if (!auth) {
-                alert("Firebase 設定未填寫，無法登入。");
-                return;
-            }
+            if (!auth) { alert("Firebase 設定未填寫,無法登入。"); return; }
             const provider = new GoogleAuthProvider();
             signInWithPopup(auth, provider).catch(error => {
                 console.error("Login failed:", error);
@@ -1166,8 +1519,7 @@
             if(auth) signOut(auth);
         }
 
-        // --- [重要] 將 Module 內的函式綁定到 Window ---
-        // 這是因為 HTML 的 onclick 屬性無法直接呼叫 type="module" 內的函式
+        // Bind to window
         window.saveData = saveData;
         window.loadFromHistory = loadFromHistory;
         window.deleteCurrentData = deleteCurrentData;
@@ -1176,7 +1528,6 @@
         window.switchMode = switchMode;
         window.doLogin = doLogin;
         window.doLogout = doLogout;
-        // --- 綁定結束 ---
 
     </script>
 </body>
